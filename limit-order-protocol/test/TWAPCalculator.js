@@ -1,61 +1,163 @@
-const { expect, time } = require('@1inch/solidity-utils');
-const { ethers } = require('hardhat');
+const { expect, time, assertRoughlyEqualValues } = require('@1inch/solidity-utils');
+const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { buildOrder, signOrder, buildTakerTraits } = require('./helpers/orderUtils');
+const { deploySwapTokens } = require('./helpers/fixtures');
 const { ether } = require('./helpers/utils');
-const { BigNumber } = ethers;
-describe('TWAPCalculator', function () {
-    let TWAPCalculator, twap, deployer;
-    const interval = 300; // 5 minutes
-    const chunk = ether('1');
-    const price = ether('3200');
-    const total = ether('10');
-    let start;
+const { ethers } = require('hardhat');
 
-    beforeEach(async function () {
-        [deployer] = await ethers.getSigners();
-        TWAPCalculator = await ethers.getContractFactory('TWAPCalculator');
+describe('TWAPCalculator with decimals', function () {
+    let maker, taker;
 
-        start = (await time.latest()) + 60; // start 1 minute from now
-        twap = await TWAPCalculator.deploy(start, interval, chunk, price, total);
-        await twap.waitForDeployment();
+    before(async () => {
+        [maker, taker] = await ethers.getSigners();
     });
 
-    it('reverts before start time', async function () {
-        await time.increaseTo(start - 10);
-        await expect(twap.getTakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, chunk))
-            .to.be.revertedWith('Requested maker amount exceeds unlocked');
+    async function deployAndBuildOrder () {
+        const { weth, usdc, swap, chainId } = await deploySwapTokens();
+
+        // Mint + deposit/approve WETH + USDC
+        await weth.deposit({ value: ether('10') });
+        await weth.connect(taker).deposit({ value: ether('10') });
+
+        await weth.approve(swap, ether('10'));
+        await weth.connect(taker).approve(swap, ether('10'));
+
+        await usdc.mint(maker.address, ether('32000'));
+        await usdc.mint(taker.address, ether('32000'));
+        await usdc.approve(swap, ether('32000'));
+        await usdc.connect(taker).approve(swap, ether('32000'));
+
+        // Deploy TWAPCalculator
+        const TWAPCalculator = await ethers.getContractFactory('TWAPCalculator');
+        const calculator = await TWAPCalculator.deploy();
+        await calculator.waitForDeployment();
+
+        // Deploy mock Chainlink price feed: 3200 USD per ETH (8 decimals)
+        const MockV3Aggregator = await ethers.getContractFactory('MockV3Aggregator');
+        const mockFeed = await MockV3Aggregator.deploy(8, BigInt(3200e8));
+        await mockFeed.waitForDeployment();
+
+        const chunkAmount = ether('1');
+        const totalAmount = ether('10');
+        const interval = 300;
+        const now = await time.latest();
+        const startTime = now + 60;
+
+        // Prepare extraData
+        const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+            ['uint256', 'uint256', 'uint256', 'uint256', 'address', 'uint8', 'uint8'],
+            [startTime, interval, chunkAmount, totalAmount, await mockFeed.getAddress(), 18, 6] // WETH → USDC
+        );
+
+        const calculatorAddr = await calculator.getAddress();
+
+        const makingAmountData = ethers.solidityPacked(
+            ['address', 'bytes'],
+            [calculatorAddr, extraData]
+        );
+        const takingAmountData = ethers.solidityPacked(
+            ['address', 'bytes'],
+            [calculatorAddr, extraData]
+        );
+
+        const order = buildOrder(
+            {
+                makerAsset: await weth.getAddress(),
+                takerAsset: await usdc.getAddress(),
+                makingAmount: totalAmount,
+                takingAmount: 0,
+                maker: maker.address,
+                receiver: maker.address,
+            },
+            {
+                makingAmountData,
+                takingAmountData,
+            }
+        );
+
+        const signature = await signOrder(order, chainId, await swap.getAddress(), maker);
+
+        return {
+            weth, usdc, swap, calculator, order, signature, startTime, chunkAmount,
+            makerWeth: await weth.balanceOf(maker.address),
+            takerWeth: await weth.balanceOf(taker.address),
+            makerUsdc: await usdc.balanceOf(maker.address),
+            takerUsdc: await usdc.balanceOf(taker.address),
+        };
+    }
+
+    it('fills 1 WETH chunk correctly after 1 interval', async function () {
+        const {
+            weth, usdc, swap, order, signature, startTime, chunkAmount,
+            makerWeth, takerWeth, makerUsdc, takerUsdc
+        } = await loadFixture(deployAndBuildOrder);
+
+        await time.increaseTo(startTime + 300);
+
+        const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+        const takerTraits = buildTakerTraits({
+            makingAmount: true,
+            extension: order.extension,
+            threshold: ethers.parseUnits('3200', 6), // USDC threshold
+        });
+
+        await swap.connect(taker).fillOrderArgs(
+            order,
+            r,
+            vs,
+            chunkAmount,
+            takerTraits.traits,
+            takerTraits.args
+        );
+
+        // Check WETH balances
+        expect(await weth.balanceOf(maker.address)).to.equal(makerWeth - chunkAmount);
+        expect(await weth.balanceOf(taker.address)).to.equal(takerWeth + chunkAmount);
+
+        // Check USDC balances (taker pays 3200 USDC for 1 WETH)
+        assertRoughlyEqualValues(await usdc.balanceOf(maker.address), makerUsdc + ethers.parseUnits("3200", 6), 1);
+        assertRoughlyEqualValues(await usdc.balanceOf(taker.address), takerUsdc - ethers.parseUnits("3200", 6), 1);
     });
 
-    it('unlocks 1 chunk after 1 interval', async function () {
-        await time.increaseTo(start + interval);
-        const takerAmount = await twap.getTakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, chunk);
-        expect(takerAmount).to.equal(price);
+    it('reverts if fill attempted before startTime', async function () {
+        const { swap, order, signature, chunkAmount, calculator } = await loadFixture(deployAndBuildOrder);
 
-        const makerAmount = await twap.getMakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, price);
-        expect(makerAmount).to.equal(chunk);
+        const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+        const takerTraits = buildTakerTraits({
+            makingAmount: true,
+            extension: order.extension,
+            threshold: ethers.parseUnits("3300", 6),
+        });
+
+        await expect(
+            swap.connect(taker).fillOrderArgs(order, r, vs, chunkAmount, takerTraits.traits, takerTraits.args)
+        ).to.be.revertedWithCustomError(calculator, "RequestedExceedsUnlocked");
     });
 
-    it('reverts if requesting more than unlocked', async function () {
-        await time.increaseTo(start + interval);
-        await expect(twap.getTakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, ether('2')))
-            .to.be.revertedWith('Requested maker amount exceeds unlocked');
+    it('reverts if taker fills more than unlocked chunk after 1 interval', async function () {
+        const {
+            swap, order, calculator, signature, startTime, chunkAmount
+        } = await loadFixture(deployAndBuildOrder);
+
+        await time.increaseTo(startTime + 300); // 1 interval passed
+
+        const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+        const takerTraits = buildTakerTraits({
+            makingAmount: true,
+            extension: order.extension,
+            threshold: ethers.parseUnits("6600", 6), // for 2 chunks
+        });
+
+        await expect(
+            swap.connect(taker).fillOrderArgs(
+                order,
+                r,
+                vs,
+                chunkAmount * 2n,
+                takerTraits.traits,
+                takerTraits.args
+            )
+        ).to.be.revertedWithCustomError(calculator, "RequestedExceedsUnlocked");
     });
 
-    it('rounds down getMakerAmount to nearest chunk', async function () {
-        await time.increaseTo(start + interval * 2);
-        const partialPrice = (price * 15n) / 10n; // ✅ ethers v6 + BigInt
-        const makerAmount = await twap.getMakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, partialPrice);
-        expect(makerAmount).to.equal(chunk); // rounds down to 1 chunk
-    });
-
-    it('unlocks full amount after enough time', async function () {
-        await time.increaseTo(start + interval * 10); // full unlock
-        const takerAmount = await twap.getTakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, total);
-        expect(takerAmount).to.equal((price * total) / ether('1'));
-    });
-
-    it('caps unlocked amount at totalAmount', async function () {
-        await time.increaseTo(start + interval * 100); // way past total
-        const takerAmount = await twap.getTakerAmount(ethers.ZeroAddress, ethers.ZeroAddress, total);
-        expect(takerAmount).to.equal((price * total) / ether('1'));
-    });
 });
