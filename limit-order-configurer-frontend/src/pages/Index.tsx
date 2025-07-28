@@ -1,7 +1,15 @@
-import { TWAPOrderCreator } from '@/components/TWAPOrderCreator';
+import { Header } from "@/components/Header";
+import { StrategyConfigurator } from "@/components/StrategyConfigurator";
 
 const Index = () => {
-  return <TWAPOrderCreator />;
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="pt-8 pb-16">
+        <StrategyConfigurator />
+      </main>
+    </div>
+  );
 };
 
 export default Index;
