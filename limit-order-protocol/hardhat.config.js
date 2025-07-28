@@ -20,7 +20,12 @@ if (getNetwork().indexOf('zksync') !== -1) {
 const { networks, etherscan } = (new Networks()).registerAll();
 
 module.exports = {
-    etherscan,
+    etherscan: {
+    apiKey: {
+        sepolia: process.env.ETHERSCAN_API_KEY,
+        // Add others if needed later (mainnet, goerli, etc.)
+    }
+    },
     tracer: {
         enableAllOpcodes: true,
     },
@@ -35,7 +40,14 @@ module.exports = {
             viaIR: true,
         },
     },
-    networks,
+    networks: {
+    ...networks, // keep existing ones
+    sepolia: {
+        url: process.env.SEPOLIA_RPC,
+        accounts: [process.env.PRIVATE_KEY],
+        chainId: 11155111,
+    },
+    },
     namedAccounts: {
         deployer: {
             default: 0,
