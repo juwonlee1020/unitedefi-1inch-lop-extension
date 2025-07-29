@@ -4,8 +4,12 @@ pragma solidity 0.8.23;
 import { IAmountGetter } from "../interfaces/IAmountGetter.sol";
 import { IOrderMixin } from "../interfaces/IOrderMixin.sol";
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract MultiPhaseAmountCalculator is IAmountGetter {
+    error RequestedExceedsUnlocked();
+    error InvalidPrice();
+
     struct Phase {
         uint256 start;
         uint256 end;
@@ -14,9 +18,15 @@ contract MultiPhaseAmountCalculator is IAmountGetter {
     }
 
     function decodeExtraData(bytes calldata extraData) internal pure returns (bool, address, Phase[] memory) {
-        (bool useTime, address oracle, Phase[] memory phases) = abi.decode(extraData, (bool, address, Phase[]));
+        require(extraData.length > 0, "ExtraData is empty");
+
+        // ✅ Decode using Solidity's built-in ABI decoder
+        (bool useTime, address oracle, Phase[] memory phases) =
+            abi.decode(extraData, (bool, address, Phase[]));
+
         return (useTime, oracle, phases);
     }
+
 
     function getLatestPrice(address oracle) public view returns (uint256) {
         (, int256 answer,,,) = AggregatorV3Interface(oracle).latestRoundData();
@@ -55,6 +65,7 @@ contract MultiPhaseAmountCalculator is IAmountGetter {
             p.extraData
         );
     }
+    
 
     function getMakingAmount(
         IOrderMixin.Order calldata order,

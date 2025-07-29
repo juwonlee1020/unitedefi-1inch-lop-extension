@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "../interfaces/IAmountGetter.sol";
 import "../interfaces/IOrderMixin.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title TWAPCalculator
 /// @notice Calculates time-unlocked makerAsset amounts with real-time pricing via Chainlink.
@@ -12,7 +13,58 @@ contract TWAPCalculator is IAmountGetter {
     error RequestedExceedsUnlocked();
     error InvalidPrice();
 
-    /// @notice Called by Fusion to calculate the takerAsset amount required for a given makerAsset amount
+    function decodeExtraData(bytes calldata extraData)
+        external
+        pure
+        returns (
+            uint256 startTime,
+            uint256 interval,
+            uint256 chunkAmount,
+            uint256 totalAmount,
+            address priceFeed,
+            uint8 makerDecimals,
+            uint8 takerDecimals
+        )
+    {
+        return abi.decode(extraData, (uint256, uint256, uint256, uint256, address, uint8, uint8));
+    }
+
+    // /// @notice Called by Fusion to calculate the takerAsset amount required for a given makerAsset amount
+    // function getTakingAmount(
+    //     IOrderMixin.Order calldata,     // order (unused)
+    //     bytes calldata,                 // extension (unused)
+    //     bytes32,                        // orderHash (unused)
+    //     address,                        // taker (unused)
+    //     uint256 makingAmount,
+    //     uint256 remainingMakingAmount,
+    //     bytes calldata extraData
+    // ) external view override returns (uint256 takerAmount) {
+    //     (
+    //         uint256 startTime,
+    //         uint256 interval,
+    //         uint256 chunkAmount,
+    //         uint256 totalAmount,
+    //         address priceFeed,
+    //         uint8 makerDecimals,
+    //         uint8 takerDecimals
+    //     ) = abi.decode(extraData, (uint256, uint256, uint256, uint256, address, uint8, uint8));
+
+    //     uint256 unlocked = _getUnlockedAmount(startTime, interval, chunkAmount, totalAmount);
+    //     uint256 available = _min(unlocked, remainingMakingAmount);
+    //     if (makingAmount > available) revert RequestedExceedsUnlocked();
+
+    //     uint256 price = _getLatestPrice(priceFeed); // 8 decimals from Chainlink
+    //     uint256 scale = 10 ** (makerDecimals + 8 - takerDecimals); // normalize output
+    //     takerAmount = price * makingAmount / scale;
+    // }
+
+    // function _decode(bytes memory extraData) public pure returns (uint256) {
+    //     return abi.decode(extraData, (uint256, uint256, uint256, uint256, address, uint8, uint8));
+
+
+    // }
+
+
     function getTakingAmount(
         IOrderMixin.Order calldata,     // order (unused)
         bytes calldata,                 // extension (unused)
@@ -22,24 +74,44 @@ contract TWAPCalculator is IAmountGetter {
         uint256 remainingMakingAmount,
         bytes calldata extraData
     ) external view override returns (uint256 takerAmount) {
-        (
-            uint256 startTime,
-            uint256 interval,
-            uint256 chunkAmount,
-            uint256 totalAmount,
-            address priceFeed,
-            uint8 makerDecimals,
-            uint8 takerDecimals
-        ) = abi.decode(extraData, (uint256, uint256, uint256, uint256, address, uint8, uint8));
+        uint256 startTime;
+        uint256 interval;
+        uint256 chunkAmount;
+        uint256 totalAmount;
+        address priceFeed;
+        uint8 makerDecimals;
+        uint8 takerDecimals;
+        try this.decodeExtraData(extraData) returns (
+            uint256 _startTime,
+            uint256 _interval,
+            uint256 _chunkAmount,
+            uint256 _totalAmount,
+            address _priceFeed,
+            uint8 _makerDecimals,
+            uint8 _takerDecimals
+        ) {
+            startTime = _startTime;
+            interval = _interval;
+            chunkAmount = _chunkAmount;
+            totalAmount = _totalAmount;
+            priceFeed = _priceFeed;
+            makerDecimals = _makerDecimals;
+            takerDecimals = _takerDecimals;
+        } catch {
+            revert("TWAP: Failed to decode extraData");
+        }
 
         uint256 unlocked = _getUnlockedAmount(startTime, interval, chunkAmount, totalAmount);
+
         uint256 available = _min(unlocked, remainingMakingAmount);
+
         if (makingAmount > available) revert RequestedExceedsUnlocked();
 
         uint256 price = _getLatestPrice(priceFeed); // 8 decimals from Chainlink
         uint256 scale = 10 ** (makerDecimals + 8 - takerDecimals); // normalize output
         takerAmount = price * makingAmount / scale;
     }
+
 
     /// @notice Called by Fusion to calculate how much makerAsset can be bought for a given takerAsset amount
     function getMakingAmount(
@@ -60,6 +132,8 @@ contract TWAPCalculator is IAmountGetter {
             uint8 makerDecimals,
             uint8 takerDecimals
         ) = abi.decode(extraData, (uint256, uint256, uint256, uint256, address, uint8, uint8));
+
+
 
         uint256 price = _getLatestPrice(priceFeed); // 8 decimals
         uint256 scale = 10 ** (makerDecimals + 8 - takerDecimals);

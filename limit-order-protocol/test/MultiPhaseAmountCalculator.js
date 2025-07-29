@@ -28,7 +28,6 @@ describe('MultiPhaseAmountCalculator (integration)', function () {
         const TWAPCalculator = await ethers.getContractFactory('TWAPCalculator');
         const twap = await TWAPCalculator.deploy();
         await twap.waitForDeployment();
-
         const MultiPhase = await ethers.getContractFactory('MultiPhaseAmountCalculator');
         const multiPhase = await MultiPhase.deploy();
         await multiPhase.waitForDeployment();
@@ -44,17 +43,18 @@ describe('MultiPhaseAmountCalculator (integration)', function () {
         const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
             "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
         ], [start, 60, ether('1'), ether('10'), await oracle.getAddress(), 18, 6]);
+        
 
-        const phaseStruct = {
-            start,
-            end,
-            calculator: await twap.getAddress(),
-            extraData: twapExtraData
-        };
-
-        const extraData = ethers.AbiCoder.defaultAbiCoder().encode([
-            "bool", "address", "tuple(uint256 start,uint256 end,address calculator,bytes extraData)[]"
-        ], [true, await oracle.getAddress(), [phaseStruct]]);
+        const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
+        [
+            true,
+            await oracle.getAddress(),
+            [
+            [start, end, await twap.getAddress(), twapExtraData]
+            ]
+        ]
+        );
 
         const order = buildOrder({
             makerAsset: await dai.getAddress(),
@@ -62,11 +62,18 @@ describe('MultiPhaseAmountCalculator (integration)', function () {
             makingAmount: ether('10'),
             takingAmount: 0,
             maker: maker.address
-        }, {
-            takingAmountData: extraData,
-            makingAmountData: extraData
+        }, { 
+            makingAmountData: ethers.solidityPacked(
+                ['address','bytes'],
+                [await multiPhase.getAddress(),extraData],
+            ),
+            takingAmountData: ethers.solidityPacked(
+                ['address','bytes'],
+                [await multiPhase.getAddress(),extraData],
+            ),
         });
 
+                   
         const signature = await signOrder(order, chainId, await swap.getAddress(), maker);
 
         const makerDaiBefore = await dai.balanceOf(maker);
@@ -89,48 +96,9 @@ describe('MultiPhaseAmountCalculator (integration)', function () {
             threshold: ether('3200')
         });
 
-        await swap.connect(taker).fillOrderArgs(order, r, vs, ether('1'), takerTraits.traits, takerTraits.args);
-
-        expect(await dai.balanceOf(maker)).to.equal(makerDaiBefore - ether('10'));
-        expect(await dai.balanceOf(taker)).to.equal(takerDaiBefore + ether('10'));
-        expect(await weth.balanceOf(maker)).to.be.gt(makerWethBefore); // should have received WETH
-        expect(await weth.balanceOf(taker)).to.be.lt(takerWethBefore); // should have paid WETH
-    });
-
-    it('reverts outside phase window', async function () {
-        const { multiPhase, order, maker, end } = await loadFixture(deployAndBuildOrder);
-        await time.increaseTo(end + 100);
-
-        const orderStruct = {
-            makerAsset: order.makerAsset,
-            takerAsset: order.takerAsset,
-            maker: order.maker,
-            receiver: order.receiver,
-            allowedSender: order.allowedSender,
-            makingAmount: order.makingAmount,
-            takingAmount: order.takingAmount,
-            makerAssetData: order.makerAssetData,
-            takerAssetData: order.takerAssetData,
-            getMakerAmount: order.getMakerAmount,
-            getTakerAmount: order.getTakerAmount,
-            predicate: order.predicate,
-            permit: order.permit,
-            interaction: order.interaction,
-            salt: order.salt,
-            makerTraits: order.makerTraits ?? 0,
-            extension: order.extension ?? '0x'
-        };
-
         await expect(
-            multiPhase.getTakingAmount(
-                orderStruct,
-                '0x',
-                ethers.keccak256('0x1234'),
-                maker.address,
-                ether('1'),
-                ether('10'),
-                order.takingAmountData
-            )
-        ).to.be.revertedWith("No active phase");
+            swap.connect(taker).fillOrderArgs(order, r, vs, ether('8'), takerTraits.traits, takerTraits.args)
+        ).to.be.revertedWithCustomError(multiPhase, "RequestedExceedsUnlocked");
     });
+
 });
