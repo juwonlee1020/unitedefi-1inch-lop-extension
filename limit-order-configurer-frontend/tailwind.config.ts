@@ -17,7 +17,11 @@ export default {
 				'2xl': '1400px'
 			}
 		},
-		extend: {
+    extend: {
+      fontFamily: {
+        'inter': ['Inter', 'system-ui', 'sans-serif'],
+        'sans': ['Inter', 'system-ui', 'sans-serif'],
+      },
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -70,15 +74,28 @@ export default {
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-primary-soft': 'var(--gradient-primary-soft)',
 				'gradient-secondary': 'var(--gradient-secondary)',
 				'gradient-accent': 'var(--gradient-accent)',
+				'gradient-surface': 'var(--gradient-surface)',
+				'gradient-glass': 'var(--gradient-glass)',
+				'gradient-warm': 'var(--gradient-warm)',
 			},
 			boxShadow: {
 				'soft': 'var(--shadow-soft)',
+				'medium': 'var(--shadow-medium)',
+				'large': 'var(--shadow-large)',
+				'xl': 'var(--shadow-xl)',
 				'glow': 'var(--shadow-glow)',
+				'glow-lg': 'var(--shadow-glow-lg)',
+				'pink-soft': 'var(--shadow-pink-soft)',
+				'inner': 'var(--shadow-inner)',
+				'glass': 'var(--shadow-glass)',
 			},
 			transitionTimingFunction: {
 				'smooth': 'var(--transition-smooth)',
+				'spring': 'var(--transition-spring)',
+				'elegant': 'var(--transition-elegant)',
 			},
 			keyframes: {
 				'accordion-down': {

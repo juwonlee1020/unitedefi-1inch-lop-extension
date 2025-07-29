@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { OrderParametersForm } from "./OrderParametersForm";
 import { TransitionTypeSelector } from "./TransitionTypeSelector";
 import { TimeBasedConfigurator } from "./TimeBasedConfigurator";
 import { PriceBasedConfigurator } from "./PriceBasedConfigurator";
@@ -64,43 +65,91 @@ export const StrategyConfigurator = () => {
 
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Transition Type Selector */}
-      <TransitionTypeSelector
-        selected={transitionType}
-        onSelect={setTransitionType}
-      />
+    <div className="min-h-screen bg-gradient-warm">
+      <div className="max-w-6xl mx-auto p-8 space-y-10">
+        {/* Header Section */}
+        <div className="text-center space-y-4 mb-16 animate-fade-in">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent font-inter tracking-tight">
+            Strategy Configuration
+          </h1>
+          <p className="text-muted-foreground text-xl max-w-3xl mx-auto font-inter font-light leading-relaxed">
+            Design your trading strategy with intelligent timing or price-based transitions
+          </p>
+          <div className="w-24 h-1 bg-gradient-primary rounded-full mx-auto"></div>
+        </div>
 
-      {/* Configurator based on selected type */}
-      {transitionType === "time" ? (
-        <TimeBasedConfigurator
-          intervals={timeIntervals}
-          onIntervalsChange={setTimeIntervals}
-        />
-      ) : (
-        <PriceBasedConfigurator
-          ranges={priceRanges}
-          onRangesChange={setPriceRanges}
-        />
-      )}
+        {/* Step 1: Order Parameters */}
+        <div className="animate-fade-in">
+          <OrderParametersForm />
+        </div>
 
-      {/* Strategy Settings Panel */}
-      <StrategySettingsPanel
-        usedStrategies={getUsedStrategies()}
-        onStrategyUpdate={handleStrategyUpdate}
-      />
+        {/* Step 2: Transition Type Selector */}
+        <div className="animate-fade-in space-y-4" style={{ animationDelay: '0.1s' }}>
+          <div className="space-y-2">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Step 2
+            </h2>
+            <h3 className="text-2xl font-semibold text-foreground font-inter">
+              Choose Transition Logic
+            </h3>
+          </div>
+          <TransitionTypeSelector
+            selected={transitionType}
+            onSelect={setTransitionType}
+          />
+        </div>
 
-      {/* Execute Strategy */}
-      <div className="flex justify-center pt-6">
-        <Button
-          variant="default"
-          size="lg"
-          onClick={executeStrategy}
-          className="flex items-center gap-2 px-8"
-        >
-          <Play className="w-5 h-5" />
-          Execute Strategy
-        </Button>
+        {/* Configurator based on selected type */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          {transitionType === "time" ? (
+            <TimeBasedConfigurator
+              intervals={timeIntervals}
+              onIntervalsChange={setTimeIntervals}
+            />
+          ) : (
+            <PriceBasedConfigurator
+              ranges={priceRanges}
+              onRangesChange={setPriceRanges}
+            />
+          )}
+        </div>
+
+        {/* Step 3: Strategy Settings Panel */}
+        <div className="animate-fade-in space-y-4" style={{ animationDelay: '0.3s' }}>
+          <div className="space-y-2">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Step 3
+            </h2>
+            <h3 className="text-2xl font-semibold text-foreground font-inter">
+              Configure Strategy Settings
+            </h3>
+          </div>
+          <StrategySettingsPanel
+            usedStrategies={getUsedStrategies()}
+            onStrategyUpdate={handleStrategyUpdate}
+          />
+        </div>
+
+        {/* Execute Strategy CTA */}
+        <div className="flex justify-center pt-16 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="text-center space-y-6">
+            <div className="space-y-3">
+              <p className="text-muted-foreground font-inter font-medium">
+                Ready to deploy your strategy?
+              </p>
+              <div className="w-12 h-0.5 bg-gradient-primary rounded-full mx-auto opacity-60"></div>
+            </div>
+            <Button
+              variant="cta"
+              onClick={executeStrategy}
+              className="group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <Play className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-200" />
+              Execute Strategy
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
