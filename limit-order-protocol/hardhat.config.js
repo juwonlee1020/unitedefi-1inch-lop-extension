@@ -47,6 +47,12 @@ module.exports = {
         accounts: [process.env.PRIVATE_KEY],
         chainId: 11155111,
     },
+    hardhat: {
+      forking: {
+        url: process.env.MAINNET_RPC, // or Infura
+        blockNumber: 23029350, // Optional: stable snapshot
+      },
+    }
     },
     namedAccounts: {
         deployer: {
@@ -74,5 +80,5 @@ module.exports = {
         templates: oneInchTemplates(),
         pages: 'files',
         exclude: ['mocks'],
-    },
-};
+    }
+}
