@@ -28,26 +28,37 @@ export const Header = () => {
     }
   };
 
-  useEffect(() => {
-    const checkConnection = async () => {
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" });
-        if (accounts.length > 0) {
-          dispatch(setWalletAddress(accounts[0]));
-        }
-      }
-    };
-
-    checkConnection();
-
-    window.ethereum?.on("accountsChanged", (accounts: string[]) => {
+useEffect(() => {
+  const checkConnection = async () => {
+    if (window.ethereum) {
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length > 0) {
         dispatch(setWalletAddress(accounts[0]));
-      } else {
-        dispatch(disconnectWallet());
       }
-    });
-  }, [dispatch]);
+    }
+  };
+
+  const handleAccountsChanged = (accounts: string[]) => {
+    if (accounts.length > 0) {
+      dispatch(setWalletAddress(accounts[0]));
+    } else {
+      dispatch(disconnectWallet());
+    }
+  };
+
+  if (window.ethereum) {
+    window.ethereum.on("accountsChanged", handleAccountsChanged);
+  }
+
+  checkConnection();
+
+  return () => {
+    if (window.ethereum?.removeListener) {
+      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+    }
+  };
+}, [dispatch]);
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-sm">

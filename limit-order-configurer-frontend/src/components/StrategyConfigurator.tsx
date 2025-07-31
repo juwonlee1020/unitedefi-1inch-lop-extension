@@ -7,6 +7,13 @@ import { PriceBasedConfigurator } from "./PriceBasedConfigurator";
 import { StrategySettingsPanel } from "./StrategySettingsPanel";
 import { Play } from "lucide-react";
 import { toast } from "sonner";
+import { buildOrder, signOrder, buildTakerTraits } from "@/utils/orderUtils";
+import { getSigner, getContract, ether } from "@/utils/wallet";
+import { getAddress } from "ethers";
+import { ethers } from 'ethers';
+import abi from '../abi/limitOrderProtocol.json'; // adjust path if needed
+import swapabi from '../abi/swap.json'; // adjust path if needed
+
 
 interface TimeInterval {
   id: string;
@@ -27,6 +34,8 @@ export const StrategyConfigurator = () => {
   const [timeIntervals, setTimeIntervals] = useState<TimeInterval[]>([]);
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
   const [strategySettings, setStrategySettings] = useState<Record<string, any>>({});
+  const [order, setOrder] = useState();
+  const [signature, setSignature] = useState();
 
   const getUsedStrategies = (): ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[] => {
     const strategies = new Set<"TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION">();
@@ -47,21 +56,73 @@ export const StrategyConfigurator = () => {
     }));
   };
 
-  const executeStrategy = () => {
-    const usedStrategies = getUsedStrategies();
-    if (usedStrategies.length === 0) {
-      toast.error("Configure at least one strategy to execute!");
-      return;
-    }
+  async function executeStrategy(){
+    // const usedStrategies = getUsedStrategies();
+    // if (usedStrategies.length === 0) {
+    //   toast.error("Configure at least one strategy to execute!");
+    //   return;
+    // }
     
-    const hasIntervals = transitionType === "time" ? timeIntervals.length > 0 : priceRanges.length > 0;
-    if (!hasIntervals) {
-      toast.error(`Add at least one ${transitionType}-based rule to execute!`);
-      return;
-    }
-    
-    toast.success("Strategy configuration saved! Ready for execution.");
+    // const hasIntervals = transitionType === "time" ? timeIntervals.length > 0 : priceRanges.length > 0;
+    // if (!hasIntervals) {
+    //   toast.error(`Add at least one ${transitionType}-based rule to execute!`);
+    //   return;
+    // }
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const maker = await provider.getSigner();
+
+  const SWAP_ADDRESS = '0x76f18Cc5F9DB41905a285866B9277Ac451F3f75B';
+  const DAI_ADDRESS = '0x818eA3862861e82586A4D6E1A78A1a657FC615aa';
+  const WETH_ADDRESS_LOCAL = '0x6D31CEaaa0588A62fFb99eCa3Bde0F22Bd7DBb7B';
+  const DUTCH_CALCULATOR_ADDRESS = '0xb7aCdc1Ae11554dfe98aA8791DCEE0F009155D5e';
+
+    const startEndTs = "596806566623866304071545085164385126479704034533";
+    const order = buildOrder(
+        {
+            makerAsset: DAI_ADDRESS,
+            takerAsset: WETH_ADDRESS_LOCAL,
+            makingAmount: ether('100'),
+            takingAmount: ether('0.1'),
+            maker: maker.address,
+        },
+        {
+            makingAmountData: ethers.solidityPacked(
+                ['address', 'uint256', 'uint256', 'uint256'],
+                [DUTCH_CALCULATOR_ADDRESS, startEndTs, ether('0.1'), ether('0.05')],
+            ),
+            takingAmountData: ethers.solidityPacked(
+                ['address', 'uint256', 'uint256', 'uint256'],
+                [DUTCH_CALCULATOR_ADDRESS,startEndTs, ether('0.1'), ether('0.05')],
+            ),
+        },
+    );
+    const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
+
+    setOrder(order);
+    setSignature(signature);
+    toast.success(signature);
   };
+
+  async function fillOrder(){
+       const SIG = "0xca199bf3ae66174695e19b5e5be931b36782965bf427c2aeb1127ca56aff8f0a6cab8220ba08a221cd03cdde664bb429d844fba041b0127447e331818c3b68b31b";
+    console.log(signature);
+    console.log("SIG",SIG)
+    console.log("ORDER",order)
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const taker = await provider.getSigner();
+    const SWAP_ADDRESS = '0x76f18Cc5F9DB41905a285866B9277Ac451F3f75B';
+    const swap = new ethers.Contract(SWAP_ADDRESS, swapabi.abi, taker);
+    const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+    const takerTraits = buildTakerTraits({
+        makingAmount: true,
+        extension: order.extension,
+        threshold: ether('0.08'),
+    });
+    const result = await swap.fillOrderArgs(order, r, vs, ether('10'), takerTraits.traits, takerTraits.args);
+    console.log(result)
+
+
+  }
 
 
   return (
@@ -147,6 +208,16 @@ export const StrategyConfigurator = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
               <Play className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-200" />
               Execute Strategy
+            </Button>
+
+                        <Button
+              variant="cta"
+              onClick={fillOrder}
+              className="group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <Play className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-200" />
+              fill Strategy
             </Button>
           </div>
         </div>

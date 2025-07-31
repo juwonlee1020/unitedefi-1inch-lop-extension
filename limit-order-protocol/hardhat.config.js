@@ -47,6 +47,12 @@ module.exports = {
         accounts: [process.env.PRIVATE_KEY],
         chainId: 11155111,
     },
+    hardhat: {
+      forking: {
+        url: process.env.MAINNET_RPC,
+        blockNumber: 23029351,
+      },
+    },
     },
     namedAccounts: {
         deployer: {
