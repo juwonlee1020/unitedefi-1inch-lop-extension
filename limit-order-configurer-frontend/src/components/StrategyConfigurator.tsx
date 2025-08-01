@@ -39,8 +39,11 @@ export const StrategyConfigurator = () => {
   const [signature, setSignature] = useState();
   const SWAP_ADDRESS = CONTRACT_ADDRESSES.SWAP;
   const DAI_ADDRESS = CONTRACT_ADDRESSES.DAI;
-  const WETH_ADDRESS_LOCAL = CONTRACT_ADDRESSES.WETH;
+  const DAI_ORACLE_ADDRESS = CONTRACT_ADDRESSES.DAI_ORACLE;
+  const WETH_ADDRESS = CONTRACT_ADDRESSES.WETH;
   const DUTCH_CALCULATOR_ADDRESS = CONTRACT_ADDRESSES.DUTCH_CALCULATOR;
+  const TWAP_ADDRESS = CONTRACT_ADDRESSES.TWAP_CALCULATOR;
+  const MULTIPHASE_ADDRESS = CONTRACT_ADDRESSES.MULTIPHASE_CALCULATOR;
 
   const getUsedStrategies = (): ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[] => {
     const strategies = new Set<"TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION">();
@@ -76,26 +79,72 @@ export const StrategyConfigurator = () => {
     const provider = new ethers.BrowserProvider(window.ethereum);
     const maker = await provider.getSigner();
 
-    const startEndTs = "596806566623866304071545085164385126479704034533";
-    const order = buildOrder(
-        {
-            makerAsset: DAI_ADDRESS,
-            takerAsset: WETH_ADDRESS_LOCAL,
-            makingAmount: ether('100'),
-            takingAmount: ether('0.1'),
-            maker: maker.address,
-        },
-        {
-            makingAmountData: ethers.solidityPacked(
-                ['address', 'uint256', 'uint256', 'uint256'],
-                [DUTCH_CALCULATOR_ADDRESS, startEndTs, ether('0.1'), ether('0.05')],
-            ),
-            takingAmountData: ethers.solidityPacked(
-                ['address', 'uint256', 'uint256', 'uint256'],
-                [DUTCH_CALCULATOR_ADDRESS,startEndTs, ether('0.1'), ether('0.05')],
-            ),
-        },
+    // const startEndTs = "596806566623866304071545085164385126479704034533";
+    // const order = buildOrder(
+    //     {
+    //         makerAsset: DAI_ADDRESS,
+    //         takerAsset: WETH_ADDRESS_LOCAL,
+    //         makingAmount: ether('100'),
+    //         takingAmount: ether('0.1'),
+    //         maker: maker.address,
+    //     },
+    //     {
+    //         makingAmountData: ethers.solidityPacked(
+    //             ['address', 'uint256', 'uint256', 'uint256'],
+    //             [DUTCH_CALCULATOR_ADDRESS, startEndTs, ether('0.1'), ether('0.05')],
+    //         ),
+    //         takingAmountData: ethers.solidityPacked(
+    //             ['address', 'uint256', 'uint256', 'uint256'],
+    //             [DUTCH_CALCULATOR_ADDRESS,startEndTs, ether('0.1'), ether('0.05')],
+    //         ),
+    //     },
+    // );
+    // const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
+    const latestBlock = await provider.getBlock("latest");
+
+    const now = latestBlock.timestamp;
+    const start = now + 60;   // start in 1 minute
+    const end = now + 600;    // end in 10 minutes
+
+
+    // const now = await time.latest();
+    // const start = now + 60;
+    // const end = now + 600;
+
+    const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
+        "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
+    ], [start, 60, ether('1'), ether('10'), DAI_ORACLE_ADDRESS, 18, 6]);
+    
+
+    const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+    ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
+    [
+        true,
+        DAI_ORACLE_ADDRESS,
+        [
+        [start, end, TWAP_ADDRESS, twapExtraData]
+        ]
+    ]
     );
+
+    const order = buildOrder({
+        makerAsset:  DAI_ADDRESS,
+        takerAsset: WETH_ADDRESS,
+        makingAmount: ether('10'),
+        takingAmount: 0,
+        maker: maker.address
+    }, { 
+        makingAmountData: ethers.solidityPacked(
+            ['address','bytes'],
+            [MULTIPHASE_ADDRESS,extraData],
+        ),
+        takingAmountData: ethers.solidityPacked(
+            ['address','bytes'],
+            [MULTIPHASE_ADDRESS,extraData],
+        ),
+    });
+
+                
     const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
 
     setOrder(order);
@@ -104,20 +153,26 @@ export const StrategyConfigurator = () => {
   };
 
   async function fillOrder(){
-       const SIG = "0xca199bf3ae66174695e19b5e5be931b36782965bf427c2aeb1127ca56aff8f0a6cab8220ba08a221cd03cdde664bb429d844fba041b0127447e331818c3b68b31b";
+    const SIG = "0xca199bf3ae66174695e19b5e5be931b36782965bf427c2aeb1127ca56aff8f0a6cab8220ba08a221cd03cdde664bb429d844fba041b0127447e331818c3b68b31b";
     console.log(signature);
     console.log("SIG",SIG)
     console.log("ORDER",order)
     const provider = new ethers.BrowserProvider(window.ethereum);
     const taker = await provider.getSigner();
     const swap = new ethers.Contract(SWAP_ADDRESS, swapabi.abi, taker);
+    
     const { r, yParityAndS: vs } = ethers.Signature.from(signature);
-    const takerTraits = buildTakerTraits({
+    // const takerTraits = buildTakerTraits({
+    //     makingAmount: true,
+    //     extension: order.extension,
+    //     threshold: ether('0.08'),
+    // });
+      const takerTraits = buildTakerTraits({
         makingAmount: true,
         extension: order.extension,
-        threshold: ether('0.08'),
+        threshold: ether('3200')
     });
-    const result = await swap.fillOrderArgs(order, r, vs, ether('10'), takerTraits.traits, takerTraits.args);
+    const result = await swap.fillOrderArgs(order, r, vs, ether('1'), takerTraits.traits, takerTraits.args);
     console.log(result)
 
   }
