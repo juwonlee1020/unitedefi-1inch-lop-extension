@@ -14,7 +14,19 @@ import { ethers } from 'ethers';
 import abi from '../abi/limitOrderProtocol.json'; // adjust path if needed
 import swapabi from '../abi/swap.json'; // adjust path if needed
 import { CONTRACT_ADDRESSES } from "@/config/addresses";
+interface Token {
+  name: string;
+  address: string;
+  symbol: string;
+  decimal: number;
+}
 
+
+interface OrderParameters {
+  makerToken: Token | null;
+  takerToken: Token | null;
+  makerAmount: string;
+}
 
 interface TimeInterval {
   id: string;
@@ -30,11 +42,19 @@ interface PriceRange {
   strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
 }
 
+
+
 export const StrategyConfigurator = () => {
   const [transitionType, setTransitionType] = useState<"time" | "price">("time");
   const [timeIntervals, setTimeIntervals] = useState<TimeInterval[]>([]);
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
   const [strategySettings, setStrategySettings] = useState<Record<string, any>>({});
+  const [orderParameters, setOrderParameters] = useState<OrderParameters>({
+    makerToken: null,
+    takerToken: null,
+    makerAmount: ""
+    });
+
   const [order, setOrder] = useState();
   const [signature, setSignature] = useState();
   const SWAP_ADDRESS = CONTRACT_ADDRESSES.SWAP;
@@ -64,8 +84,90 @@ export const StrategyConfigurator = () => {
     }));
   };
 
+   const executeStrategyWithData = (data: {
+    orderParameters: OrderParameters;
+    transitionType: "time" | "price";
+    timeIntervals: TimeInterval[];
+    priceRanges: PriceRange[];
+    strategySettings: Record<string, any>;
+    usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[];
+  }) => {
+    // This is where you'll implement your strategy execution logic
+    console.log("Executing strategy with data:", data);
+    
+    // Example: You can now access all the form data
+    console.log("Maker Token:", data.orderParameters.makerToken);
+    console.log("Taker Token:", data.orderParameters.takerToken);
+    console.log("Maker Amount:", data.orderParameters.makerAmount);
+    console.log("Transition Type:", data.transitionType);
+    console.log("Strategy Settings:", data.strategySettings);
+
+    data.usedStrategies.forEach(strategy => {
+      if (strategy === "TWAP") {
+        // Get TWAP settings
+        const twapSettings = data.strategySettings.TWAP || {};
+        const { interval = 60, chunkSize = "1" } = twapSettings;
+        
+        // Get start time from time intervals (find TWAP interval)
+        const twapInterval = data.timeIntervals.find(interval => interval.strategy === "TWAP");
+        const startTime = twapInterval ? twapInterval.startTime : Math.floor(Date.now() / 1000);
+        
+        // Get token decimals (assuming common decimals)
+        const makerDecimals = data.orderParameters.makerToken?.decimal; // Default to 18
+        const takerDecimals = data.orderParameters.takerToken?.decimal; // Default to 18
+        
+        // Convert amounts to wei
+        const chunkSizeWei = ether(chunkSize);
+        const totalAmountWei = ether(data.orderParameters.makerAmount);
+        
+        // Construct TWAP extra data
+        const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
+          "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
+        ], [
+          startTime,
+          interval,
+          chunkSizeWei,
+          totalAmountWei,
+          CONTRACT_ADDRESSES.DAI_ORACLE,
+          makerDecimals,
+          takerDecimals
+        ]);
+
+            // const latestBlock = await provider.getBlock("latest");
+
+    // const now = latestBlock.timestamp;
+    // const start = now + 60;   // start in 1 minute
+    // const end = now + 600;    // end in 10 minutes
+
+    
+    // const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
+    //     "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
+    // ], [start, 60, ether('1'), ether('10'), DAI_ORACLE_ADDRESS, 18, 6]);
+        
+        console.log("TWAP Extra Data:", twapExtraData);
+        console.log("TWAP Parameters:", {
+          startTime,
+          interval,
+          chunkSize: chunkSizeWei.toString(),
+          totalAmount: totalAmountWei.toString(),
+          oracleAddress: CONTRACT_ADDRESSES.DAI_ORACLE,
+          makerDecimals,
+          takerDecimals
+        });
+      }
+    });
+  };
+
   async function executeStrategy(){
-    // const usedStrategies = getUsedStrategies();
+    const usedStrategies = getUsedStrategies();
+    executeStrategyWithData({
+          orderParameters,
+          transitionType,
+          timeIntervals,
+          priceRanges,
+          strategySettings,
+          usedStrategies
+        });
     // if (usedStrategies.length === 0) {
     //   toast.error("Configure at least one strategy to execute!");
     //   return;
@@ -76,8 +178,14 @@ export const StrategyConfigurator = () => {
     //   toast.error(`Add at least one ${transitionType}-based rule to execute!`);
     //   return;
     // }
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const maker = await provider.getSigner();
+    // if (!orderParameters.makerToken || !orderParameters.takerToken || !orderParameters.makerAmount) {
+    //   toast.error("Please complete all order parameters before executing!");
+    //   return;
+    // }
+
+    // const provider = new ethers.BrowserProvider(window.ethereum);
+    // const maker = await provider.getSigner();
+
 
     // const startEndTs = "596806566623866304071545085164385126479704034533";
     // const order = buildOrder(
@@ -100,56 +208,54 @@ export const StrategyConfigurator = () => {
     //     },
     // );
     // const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
-    const latestBlock = await provider.getBlock("latest");
 
-    const now = latestBlock.timestamp;
-    const start = now + 60;   // start in 1 minute
-    const end = now + 600;    // end in 10 minutes
+    // MultiPhase
+    // const latestBlock = await provider.getBlock("latest");
 
+    // const now = latestBlock.timestamp;
+    // const start = now + 60;   // start in 1 minute
+    // const end = now + 600;    // end in 10 minutes
 
-    // const now = await time.latest();
-    // const start = now + 60;
-    // const end = now + 600;
-
-    const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
-        "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
-    ], [start, 60, ether('1'), ether('10'), DAI_ORACLE_ADDRESS, 18, 6]);
+    
+    // const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
+    //     "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
+    // ], [start, 60, ether('1'), ether('10'), DAI_ORACLE_ADDRESS, 18, 6]);
     
 
-    const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
-    ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
-    [
-        true,
-        DAI_ORACLE_ADDRESS,
-        [
-        [start, end, TWAP_ADDRESS, twapExtraData]
-        ]
-    ]
-    );
+    // const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+    // ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
+    // [
+    //     true,
+    //     DAI_ORACLE_ADDRESS,
+    //     [
+    //     [start, end, TWAP_ADDRESS, twapExtraData]
+    //     ]
+    // ]
+    // );
 
-    const order = buildOrder({
-        makerAsset:  DAI_ADDRESS,
-        takerAsset: WETH_ADDRESS,
-        makingAmount: ether('10'),
-        takingAmount: 0,
-        maker: maker.address
-    }, { 
-        makingAmountData: ethers.solidityPacked(
-            ['address','bytes'],
-            [MULTIPHASE_ADDRESS,extraData],
-        ),
-        takingAmountData: ethers.solidityPacked(
-            ['address','bytes'],
-            [MULTIPHASE_ADDRESS,extraData],
-        ),
-    });
+    // const order = buildOrder({
+    //     makerAsset:  DAI_ADDRESS,
+    //     takerAsset: WETH_ADDRESS,
+    //     makingAmount: ether('10'),
+    //     takingAmount: 0,
+    //     maker: maker.address
+    // }, { 
+    //     makingAmountData: ethers.solidityPacked(
+    //         ['address','bytes'],
+    //         [MULTIPHASE_ADDRESS,extraData],
+    //     ),
+    //     takingAmountData: ethers.solidityPacked(
+    //         ['address','bytes'],
+    //         [MULTIPHASE_ADDRESS,extraData],
+    //     ),
+    // });
 
                 
-    const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
+    // const signature = await signOrder(order, 31337, SWAP_ADDRESS, maker);
 
-    setOrder(order);
-    setSignature(signature);
-    toast.success(signature);
+    // setOrder(order);
+    // setSignature(signature);
+    // toast.success(signature);
   };
 
   async function fillOrder(){
@@ -194,7 +300,9 @@ export const StrategyConfigurator = () => {
 
         {/* Step 1: Order Parameters */}
         <div className="animate-fade-in">
-          <OrderParametersForm />
+          <OrderParametersForm onParametersChange={setOrderParameters} />
+
+
         </div>
 
         {/* Step 2: Transition Type Selector */}

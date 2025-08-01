@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AVAILABLE_TOKENS, type Token } from "@/config/addresses";
 
 interface OrderParameters {
-  makerToken: string;
-  takerToken: string;
+  makerToken: Token | null;
+  takerToken: Token | null;
   makerAmount: string;
 }
 
@@ -16,13 +17,42 @@ interface OrderParametersFormProps {
 
 export const OrderParametersForm = ({ onParametersChange }: OrderParametersFormProps) => {
   const [parameters, setParameters] = useState<OrderParameters>({
-    makerToken: "",
-    takerToken: "",
+    makerToken: null,
+    takerToken: null,
     makerAmount: ""
   });
+  const [customMakerAddress, setCustomMakerAddress] = useState("");
+  const [customTakerAddress, setCustomTakerAddress] = useState("");
 
-  const handleParameterChange = (field: keyof OrderParameters, value: string) => {
-    const updatedParameters = { ...parameters, [field]: value };
+  const handleTokenChange = (field: 'makerToken' | 'takerToken', tokenAddress: string) => {
+    const token = AVAILABLE_TOKENS.find(t => t.address === tokenAddress) || null;
+    const updatedParameters = { ...parameters, [field]: token };
+    setParameters(updatedParameters);
+    onParametersChange?.(updatedParameters);
+  };
+
+  const handleCustomTokenChange = (field: 'makerToken' | 'takerToken', address: string) => {
+    if (field === 'makerToken') {
+      setCustomMakerAddress(address);
+      if (address) {
+        const customToken: Token = { name: "Custom Token", address, symbol: "CUSTOM" };
+        const updatedParameters = { ...parameters, [field]: customToken };
+        setParameters(updatedParameters);
+        onParametersChange?.(updatedParameters);
+      }
+    } else {
+      setCustomTakerAddress(address);
+      if (address) {
+        const customToken: Token = { name: "Custom Token", address, symbol: "CUSTOM" };
+        const updatedParameters = { ...parameters, [field]: customToken };
+        setParameters(updatedParameters);
+        onParametersChange?.(updatedParameters);
+      }
+    }
+  };
+
+  const handleAmountChange = (value: string) => {
+    const updatedParameters = { ...parameters, makerAmount: value };
     setParameters(updatedParameters);
     onParametersChange?.(updatedParameters);
   };
@@ -51,24 +81,24 @@ export const OrderParametersForm = ({ onParametersChange }: OrderParametersFormP
               <Label htmlFor="maker-token" className="text-sm font-medium text-foreground">
                 Token you are selling
               </Label>
-              <Select onValueChange={(value) => handleParameterChange('makerToken', value)}>
+              <Select onValueChange={(value) => handleTokenChange('makerToken', value)}>
                 <SelectTrigger className="h-12">
                   <SelectValue placeholder="Select token to sell" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="eth">ETH - Ethereum</SelectItem>
-                  <SelectItem value="usdc">USDC - USD Coin</SelectItem>
-                  <SelectItem value="usdt">USDT - Tether</SelectItem>
-                  <SelectItem value="dai">DAI - Dai Stablecoin</SelectItem>
-                  <SelectItem value="wbtc">WBTC - Wrapped Bitcoin</SelectItem>
+                  {AVAILABLE_TOKENS.map((token) => (
+                    <SelectItem key={token.address} value={token.address}>
+                      {token.symbol} - {token.name}
+                    </SelectItem>
+                  ))}
                   <SelectItem value="custom">Custom Token Address</SelectItem>
                 </SelectContent>
               </Select>
-              {parameters.makerToken === 'custom' && (
+              {parameters.makerToken?.address === 'custom' && (
                 <Input
                   placeholder="Enter token contract address (0x...)"
-                  value={parameters.makerToken}
-                  onChange={(e) => handleParameterChange('makerToken', e.target.value)}
+                  value={customMakerAddress}
+                  onChange={(e) => handleCustomTokenChange('makerToken', e.target.value)}
                   className="mt-2"
                 />
               )}
@@ -79,24 +109,24 @@ export const OrderParametersForm = ({ onParametersChange }: OrderParametersFormP
               <Label htmlFor="taker-token" className="text-sm font-medium text-foreground">
                 Token you want to receive
               </Label>
-              <Select onValueChange={(value) => handleParameterChange('takerToken', value)}>
+              <Select onValueChange={(value) => handleTokenChange('takerToken', value)}>
                 <SelectTrigger className="h-12">
                   <SelectValue placeholder="Select token to receive" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="eth">ETH - Ethereum</SelectItem>
-                  <SelectItem value="usdc">USDC - USD Coin</SelectItem>
-                  <SelectItem value="usdt">USDT - Tether</SelectItem>
-                  <SelectItem value="dai">DAI - Dai Stablecoin</SelectItem>
-                  <SelectItem value="wbtc">WBTC - Wrapped Bitcoin</SelectItem>
+                  {AVAILABLE_TOKENS.map((token) => (
+                    <SelectItem key={token.address} value={token.address}>
+                      {token.symbol} - {token.name}
+                    </SelectItem>
+                  ))}
                   <SelectItem value="custom">Custom Token Address</SelectItem>
                 </SelectContent>
               </Select>
-              {parameters.takerToken === 'custom' && (
+              {parameters.takerToken?.address === 'custom' && (
                 <Input
                   placeholder="Enter token contract address (0x...)"
-                  value={parameters.takerToken}
-                  onChange={(e) => handleParameterChange('takerToken', e.target.value)}
+                  value={customTakerAddress}
+                  onChange={(e) => handleCustomTokenChange('takerToken', e.target.value)}
                   className="mt-2"
                 />
               )}
@@ -113,7 +143,7 @@ export const OrderParametersForm = ({ onParametersChange }: OrderParametersFormP
               type="number"
               placeholder="Enter amount (e.g., 100.0)"
               value={parameters.makerAmount}
-              onChange={(e) => handleParameterChange('makerAmount', e.target.value)}
+              onChange={(e) => handleAmountChange(e.target.value)}
               className="h-12 text-lg"
             />
           </div>

@@ -9,3 +9,27 @@ export const CONTRACT_ADDRESSES = {
   MULTIPHASE_CALCULATOR: '0x9A29e9Bab1f0B599d1c6C39b60a79596b3875f56',
   DAI_ORACLE: '0xFb0a39aE8c44a0E83a1445d4d272294345fA2207',
 } as const;
+
+
+export interface Token {
+  name: string;
+  address: string;
+  symbol: string;
+  decimal: number;
+}
+
+export const AVAILABLE_TOKENS: Token[] = [
+  {
+    name: "Dai Stablecoin",
+    address: CONTRACT_ADDRESSES.DAI,
+    symbol: "DAI",
+    decimal: 18
+  },
+  {
+    name: "Wrapped Ether",
+    address: CONTRACT_ADDRESSES.WETH,
+    symbol: "WETH",
+    decimal: 18
+  }
+  // Add more tokens as needed
+];
