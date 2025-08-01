@@ -13,6 +13,7 @@ import { getAddress } from "ethers";
 import { ethers } from 'ethers';
 import abi from '../abi/limitOrderProtocol.json'; // adjust path if needed
 import swapabi from '../abi/swap.json'; // adjust path if needed
+import { CONTRACT_ADDRESSES } from "@/config/addresses";
 
 
 interface TimeInterval {
@@ -36,6 +37,10 @@ export const StrategyConfigurator = () => {
   const [strategySettings, setStrategySettings] = useState<Record<string, any>>({});
   const [order, setOrder] = useState();
   const [signature, setSignature] = useState();
+  const SWAP_ADDRESS = CONTRACT_ADDRESSES.SWAP;
+  const DAI_ADDRESS = CONTRACT_ADDRESSES.DAI;
+  const WETH_ADDRESS_LOCAL = CONTRACT_ADDRESSES.WETH;
+  const DUTCH_CALCULATOR_ADDRESS = CONTRACT_ADDRESSES.DUTCH_CALCULATOR;
 
   const getUsedStrategies = (): ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[] => {
     const strategies = new Set<"TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION">();
@@ -71,11 +76,6 @@ export const StrategyConfigurator = () => {
     const provider = new ethers.BrowserProvider(window.ethereum);
     const maker = await provider.getSigner();
 
-  const SWAP_ADDRESS = '0x76f18Cc5F9DB41905a285866B9277Ac451F3f75B';
-  const DAI_ADDRESS = '0x818eA3862861e82586A4D6E1A78A1a657FC615aa';
-  const WETH_ADDRESS_LOCAL = '0x6D31CEaaa0588A62fFb99eCa3Bde0F22Bd7DBb7B';
-  const DUTCH_CALCULATOR_ADDRESS = '0xb7aCdc1Ae11554dfe98aA8791DCEE0F009155D5e';
-
     const startEndTs = "596806566623866304071545085164385126479704034533";
     const order = buildOrder(
         {
@@ -110,7 +110,6 @@ export const StrategyConfigurator = () => {
     console.log("ORDER",order)
     const provider = new ethers.BrowserProvider(window.ethereum);
     const taker = await provider.getSigner();
-    const SWAP_ADDRESS = '0x76f18Cc5F9DB41905a285866B9277Ac451F3f75B';
     const swap = new ethers.Contract(SWAP_ADDRESS, swapabi.abi, taker);
     const { r, yParityAndS: vs } = ethers.Signature.from(signature);
     const takerTraits = buildTakerTraits({
@@ -120,7 +119,6 @@ export const StrategyConfigurator = () => {
     });
     const result = await swap.fillOrderArgs(order, r, vs, ether('10'), takerTraits.traits, takerTraits.args);
     console.log(result)
-
 
   }
 
