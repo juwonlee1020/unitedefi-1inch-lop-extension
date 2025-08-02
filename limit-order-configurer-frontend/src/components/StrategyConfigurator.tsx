@@ -57,14 +57,14 @@ interface TimeInterval {
   id: string;
   startTime: number;
   endTime: number;
-  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
 
 interface PriceRange {
   id: string;
   minPrice: number;
   maxPrice: number;
-  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
 
 
@@ -93,8 +93,8 @@ export const StrategyConfigurator = () => {
   const TWAP_ADDRESS = CONTRACT_ADDRESSES.TWAP_CALCULATOR;
   const MULTIPHASE_ADDRESS = CONTRACT_ADDRESSES.MULTIPHASE_CALCULATOR;
 
-  const getUsedStrategies = (): ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[] => {
-    const strategies = new Set<"TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION">();
+  const getUsedStrategies = (): ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED")[] => {
+    const strategies = new Set<"TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED">();
     
     if (transitionType === "time") {
       timeIntervals.forEach(interval => strategies.add(interval.strategy));
@@ -135,7 +135,7 @@ export const StrategyConfigurator = () => {
     timeIntervals: TimeInterval[];
     priceRanges: PriceRange[];
     strategySettings: Record<string, any>;
-    usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[];
+    usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED")[];
   }) {
     // This is where you'll implement your strategy execution logic
     console.log("Executing strategy with data:", data);
@@ -351,6 +351,91 @@ export const StrategyConfigurator = () => {
   };
 
 
+  async function demoExecuteStrategy(){
+    const maker = await provider.getSigner();
+
+    const latestBlock = await provider.getBlock("latest");
+    const now = latestBlock.timestamp;
+    // const start = now + 60;
+    // const twapDuration = 20 * 60; // 20 minutes
+    // const end = now + twapDuration;
+
+    const twapStart = now + 60;
+    const twapEnd = twapStart + 20 * 60;  // 20 minutes
+    const dutchEnd = twapEnd + 10 * 60;   // 10 minutes after TWAP
+
+    // Using chunkAmount-based TWAP
+    const chunkAmount = ether('500');
+    const interval = 60; // seconds
+
+    const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "uint256", "uint256", "address", "uint8", "uint8"],
+        [twapStart, interval, chunkAmount, DAI_ORACLE_ADDRESS, 18, 18]
+    );
+
+    const startEndTs = (BigInt(twapEnd) << 128n) | BigInt(dutchEnd);
+
+    const takingAmountStart = ether('3'); // 10,000 DAI * 0.0003 WETH/DAI
+    const takingAmountEnd   = ether('2'); // 10,000 DAI * 0.0002 WETH/DAI
+    const dutchExtraData = ethers.solidityPacked(
+        ['uint256', 'uint256', 'uint256'],
+        [startEndTs, takingAmountStart, takingAmountEnd]
+    );
+
+    const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
+        [
+            true, // oracleRequired
+            DAI_ORACLE_ADDRESS,
+            [
+                [twapStart, twapEnd, TWAP_ADDRESS, twapExtraData]
+            ]
+        ]
+    );
+                // [twapEnd, dutchEnd, DUTCH_CALCULATOR_ADDRESS, dutchExtraData]
+
+    const makingAmountData = ethers.solidityPacked(['address', 'bytes'], [MULTIPHASE_ADDRESS, extraData]);
+    const takingAmountData = ethers.solidityPacked(['address', 'bytes'], [MULTIPHASE_ADDRESS, extraData]);
+
+    const order = buildOrder({
+        makerAsset: DAI_ADDRESS,
+        takerAsset: WETH_ADDRESS,
+        makingAmount: ether('10000'),
+        takingAmount: ether('0'),
+        maker: maker.address
+    }, {
+        makingAmountData,
+        takingAmountData
+    });
+    const usedStrategies = getUsedStrategies();
+
+    const signature = await signOrder(order, 31337, CONTRACT_ADDRESSES.SWAP, maker);
+    dispatch(addStrategy({
+          name: "test",
+          type: "TWAP", // Primary strategy type
+          status: 'ACTIVE',
+          orderParams: {
+            makerToken: orderParameters.makerToken?.symbol || '',
+            takerToken: orderParameters.takerToken?.symbol || '',
+            makerAmount: orderParameters.makerAmount
+          },
+          strategyParams: {
+            transitionType,
+            timeIntervals,
+            priceRanges,
+            strategySettings,
+            usedStrategies
+          },
+          order: serializeOrderForRedux(order),
+
+          signature
+        }));
+    // setOrder(order);
+    // setSignature(signature);
+    toast.success(signature);
+  }
+
+
 
   return (
     <div className="min-h-screen bg-gradient-warm">
@@ -432,7 +517,9 @@ export const StrategyConfigurator = () => {
             </div>
             <Button
               variant="cta"
-              onClick={executeStrategy}
+              onClick={demoExecuteStrategy}
+
+              // onClick={executeStrategy}
               className="group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -440,15 +527,7 @@ export const StrategyConfigurator = () => {
               Execute Strategy
             </Button>
 
-                        {/* <Button
-              variant="cta"
-              onClick={fillOrder}
-              className="group relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              <Play className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-200" />
-              fill Strategy
-            </Button> */}
+
           </div>
         </div>
       </div>

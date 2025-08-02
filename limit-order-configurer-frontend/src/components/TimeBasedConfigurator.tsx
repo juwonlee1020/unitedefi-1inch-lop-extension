@@ -11,7 +11,7 @@ interface TimeInterval {
   id: string;
   startTime: number;
   endTime: number;
-  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
 
 interface TimeBasedConfiguratorProps {
@@ -47,6 +47,7 @@ export const TimeBasedConfigurator = ({ intervals, onIntervalsChange }: TimeBase
       case "TWAP": return "TWAP";
       case "RANGE_LIMIT": return "Range Limit";
       case "DUTCH_AUCTION": return "Dutch Auction";
+      case "PRENEGOTIATED": return "Prenegotiated";
       default: return strategy;
     }
   };
@@ -115,6 +116,7 @@ export const TimeBasedConfigurator = ({ intervals, onIntervalsChange }: TimeBase
                         <SelectItem value="TWAP">TWAP</SelectItem>
                         <SelectItem value="RANGE_LIMIT">Range Limit</SelectItem>
                         <SelectItem value="DUTCH_AUCTION">Dutch Auction</SelectItem>
+                        <SelectItem value="PRENEGOTIATED">Prenegotiated</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -155,7 +157,7 @@ export const TimeBasedConfigurator = ({ intervals, onIntervalsChange }: TimeBase
                   <div key={interval.id} className="group">
                     <div className="flex items-center gap-4">
                       <div className="w-24 text-xs text-muted-foreground font-mono bg-background/50 px-2 py-1 rounded">
-                        {interval.startTime}m - {interval.endTime}m
+                        {interval.startTime}-{interval.endTime}min
                       </div>
                       <div className="flex-1 h-3 bg-muted/30 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-primary rounded-full w-full group-hover:scale-105 transition-transform duration-300 shadow-glow"></div>

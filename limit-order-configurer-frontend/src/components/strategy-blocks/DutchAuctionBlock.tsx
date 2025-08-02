@@ -13,7 +13,6 @@ interface DutchAuctionBlockProps {
 export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
   const [takingAmountStart, setTakingAmountStart] = useState("");
   const [takingAmountEnd, setTakingAmountEnd] = useState("");
-  const [duration, setDuration] = useState("");
   const [priceListenerEnabled, setPriceListenerEnabled] = useState(false);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -23,7 +22,6 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
       type: "DUTCH_AUCTION",
       takingAmountStart,
       takingAmountEnd,
-      duration,
       priceListener: {
         enabled: priceListenerEnabled,
         minPrice,
@@ -43,7 +41,7 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="taking-amount-start">Taking Amount Start</Label>
             <Input
@@ -66,17 +64,6 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
               onBlur={handleUpdate}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="duration">Duration (hours)</Label>
-            <Input
-              id="duration"
-              type="number"
-              placeholder="24"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              onBlur={handleUpdate}
-            />
-          </div>
         </div>
 
         {/* Price decline visualization */}
@@ -95,7 +82,6 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
           </div>
           <div className="flex justify-between text-xs mt-1">
             <span className="text-primary">{takingAmountStart || "---"} ETH</span>
-            <span className="text-muted-foreground">{duration || "---"}h</span>
             <span className="text-primary">{takingAmountEnd || "---"} ETH</span>
           </div>
         </div>

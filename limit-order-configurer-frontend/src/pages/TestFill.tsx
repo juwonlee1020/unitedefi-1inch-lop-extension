@@ -15,6 +15,11 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESSES } from "@/config/addresses";
+import swapAbi from "@/abi/swap.json";
+import { buildTakerTraits } from "@/utils/orderUtils";
+import { ether } from "@/utils/wallet";
 
 const TestFill = () => {
   const { strategyId } = useParams();
@@ -65,7 +70,7 @@ const TestFill = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleSubmitFill = () => {
+  const handleSubmitFill = async () => {
     if (!isConnected) {
       toast({
         title: "Wallet Not Connected",
@@ -84,16 +89,72 @@ const TestFill = () => {
       return;
     }
 
-    // Mock fill submission
-    toast({
-      title: "Fill Submitted",
-      description: `Successfully submitted fill for ${fillAmount} ${strategy?.makerToken?.symbol}`,
-    });
+    try {
+      // Get the order and signature from the strategy
+      const order = strategy.order;
+      const signature = strategy.signature;
+      console.log("order",order)
+      console.log("st",strategy)
 
-    // Navigate back to monitor after a short delay
-    setTimeout(() => {
-      navigate("/monitor");
-    }, 2000);
+      if (!order || !signature) {
+        toast({
+          title: "Order Not Found",
+          description: "Order data or signature is missing",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create provider and signer
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const taker = await provider.getSigner();
+      
+      // Create swap contract instance
+      const swap = new ethers.Contract(CONTRACT_ADDRESSES.SWAP, swapAbi.abi, taker);
+      
+      // Extract r and vs from signature
+      const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+      
+      // Build taker traits
+      const takerTraits = buildTakerTraits({
+        makingAmount: true,
+        extension: order.extension,
+        threshold: ether('0.226') // buffer for rounding
+
+      });
+      
+      // Execute the fill
+      const result = await swap.fillOrderArgs(
+        order, 
+        r, 
+        vs, 
+        ether('900'), 
+
+        // ether(fillAmount), 
+        takerTraits.traits, 
+        takerTraits.args
+      );
+      
+      console.log("Fill result:", result);
+      
+      toast({
+        title: "Fill Submitted",
+        description: `Successfully submitted fill for ${fillAmount} ${strategy?.makerToken?.symbol}`,
+      });
+
+      // Navigate back to monitor after a short delay
+      setTimeout(() => {
+        navigate("/monitor");
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Fill order error:', error);
+      toast({
+        title: "Fill Failed",
+        description: "Failed to fill order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!strategy) {

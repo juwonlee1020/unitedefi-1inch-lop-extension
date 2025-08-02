@@ -5,17 +5,17 @@ const { deploySwapTokens } = require('./helpers/fixtures');
 const { buildOrder, signOrder, buildTakerTraits } = require('./helpers/orderUtils');
 const { ethers } = require('hardhat');
 
-// ### ⏱ **Phase 1: 0–8 min (TWAP)**
+// ### **Phase 1: 0–8 min (TWAP)**
 
 // - Objective: Minimize market impact by slicing up the order over time.
-// - Use case: Ideal when user wants to blend into the market, hoping for passive fills at favorable prices.
+// - Use case: Ideal when user wants to blend into the market,
 
-// ### 📉 **Phase 2: 8–10 min (Dutch Auction)**
+// ### **Phase 2: 8–10 min (Dutch Auction)**
 
 // - Objective: Begin discounting the price over time to increase urgency.
 // - Use case: Useful if TWAP didn’t fully fill and the user wants more aggressive execution, but still market-driven.
 
-// ### 🧾 **Phase 3: >10 min (Fixed Price to Whitelist Address)**
+// ### **Phase 3: >10 min (Fixed Price to Whitelist Address)**
 
 // - Objective: If still unfilled, send remaining to known buyer(s) at a pre-negotiated price.
 // - Use case: Guarantees the final execution, potentially to a treasury, OTC buyer
@@ -51,6 +51,12 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
         const dutchAuctionCalculator = await DutchAuctionCalculator.deploy();
         await dutchAuctionCalculator.waitForDeployment();
 
+
+        const PrenegotiatedCalculator = await ethers.getContractFactory('PrenegotiatedCalculator');
+        const prenegotiatedCalculator = await PrenegotiatedCalculator.deploy();
+        await prenegotiatedCalculator.waitForDeployment();
+
+
         const MultiPhase = await ethers.getContractFactory('MultiPhaseAmountCalculator');
         const multiPhase = await MultiPhase.deploy();
         await multiPhase.waitForDeployment();
@@ -68,13 +74,11 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
         // await daiOracle.waitForDeployment();
 
         const now = await time.latest();
-        // const start = now + 60;
-        // const twapDuration = 20 * 60; // 20 minutes
-        // const end = now + twapDuration;
 
         const twapStart = now + 60;
         const twapEnd = twapStart + 20 * 60;  // 20 minutes
         const dutchEnd = twapEnd + 10 * 60;   // 10 minutes after TWAP
+        const preEnd = dutchEnd + 10 * 60;   // 10 minutes after TWAP
 
         // Using chunkAmount-based TWAP
         const chunkAmount = ether('500');
@@ -94,6 +98,16 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
             [startEndTs, takingAmountStart, takingAmountEnd]
         );
 
+        const fixedPrice = ethers.parseUnits("1.25", 18); // 1.25 USDC per WETH
+        const allowedTakers = [taker.address]; // Only addr1 is allowed
+        const makerDecimals = 18; // WETH
+        const takerDecimals = 18;  // DAI mimicking USDC (6 decimals)
+
+        const prenegotiatedExtraData = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["uint256", "address[]", "uint8", "uint8"],
+            [fixedPrice, allowedTakers, makerDecimals, takerDecimals]
+        );
+
         const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
             ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
             [
@@ -102,6 +116,7 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
                 [
                     [twapStart, twapEnd, await twap.getAddress(), twapExtraData],
                     [twapEnd, dutchEnd, await dutchAuctionCalculator.getAddress(), dutchExtraData]
+                    [dutchEnd, preEnd, await prenegotiatedCalculator.getAddress(), prenegotiatedExtraData]
 
                 ]
             ]
@@ -188,13 +203,11 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
             makerDaiBefore, takerDaiBefore, makerWethBefore, takerWethBefore
         } = await loadFixture(deployAndBuildOrder);
 
-        // ⏱ Fast forward 25 minutes from TWAP start → 5 minutes into Dutch Auction
         await time.increaseTo(twapStart + 25 * 60); // 20min TWAP + 5min Dutch = 25min
 
         const { r, yParityAndS: vs } = ethers.Signature.from(signature);
         const fillAmount = ether('10000'); // taker wants 1,000 DAI
 
-        // 🧮 Set up Dutch auction math in integer space
         const startWeth = ether('3');  // for 10,000 DAI = 0.0003 per DAI
         const endWeth = ether('2');    // for 10,000 DAI = 0.0002 per DAI
 

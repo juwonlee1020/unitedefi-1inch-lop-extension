@@ -11,7 +11,7 @@ interface PriceRange {
   id: string;
   minPrice: number;
   maxPrice: number;
-  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
 
 interface PriceBasedConfiguratorProps {
@@ -47,6 +47,7 @@ export const PriceBasedConfigurator = ({ ranges, onRangesChange }: PriceBasedCon
       case "TWAP": return "TWAP";
       case "RANGE_LIMIT": return "Range Limit";
       case "DUTCH_AUCTION": return "Dutch Auction";
+      case "PRENEGOTIATED": return "Prenegotiated";
       default: return strategy;
     }
   };
@@ -124,6 +125,7 @@ export const PriceBasedConfigurator = ({ ranges, onRangesChange }: PriceBasedCon
                         <SelectItem value="TWAP">TWAP</SelectItem>
                         <SelectItem value="RANGE_LIMIT">Range Limit</SelectItem>
                         <SelectItem value="DUTCH_AUCTION">Dutch Auction</SelectItem>
+                        <SelectItem value="PRENEGOTIATED">Prenegotiated</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

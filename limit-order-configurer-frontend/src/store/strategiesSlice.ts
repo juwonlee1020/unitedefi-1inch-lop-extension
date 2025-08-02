@@ -11,7 +11,7 @@ export interface FillEvent {
 export interface Strategy {
   id: string
   name: string
-  type: 'TWAP' | 'RANGE_LIMIT' | 'DUTCH_AUCTION'
+  type: 'TWAP' | 'RANGE_LIMIT' | 'DUTCH_AUCTION' | 'PRENEGOTIATED'
   status: 'ACTIVE' | 'DONE' | 'CANCELLED'
   createdAt: string
   orderParams: {

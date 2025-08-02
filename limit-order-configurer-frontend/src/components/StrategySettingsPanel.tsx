@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TWAPBlock } from "./strategy-blocks/TWAPBlock";
 import { RangeLimitBlock } from "./strategy-blocks/RangeLimitBlock";
 import { DutchAuctionBlock } from "./strategy-blocks/DutchAuctionBlock";
+import { PregnegotiatedBlock } from "./strategy-blocks/PrenegotiatedBlock";
 import { Settings } from "lucide-react";
 
 interface StrategyItem {
   id: string;
-  type: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  type: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
   label: string;
   data: any;
 }
@@ -72,8 +73,8 @@ export const StrategySettingsPanel = ({ strategyItems, onStrategyUpdate }: Strat
       {strategyItems.map((item) => {
         const BlockComponent = item.type === "TWAP" ? TWAPBlock 
           : item.type === "RANGE_LIMIT" ? RangeLimitBlock 
-          : DutchAuctionBlock;
-
+          : item.type === "DUTCH_AUCTION" ? DutchAuctionBlock
+          : PregnegotiatedBlock;
         return (
           <div key={item.id} className="space-y-2">
             <div className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
