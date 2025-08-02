@@ -103,11 +103,28 @@ export const StrategyConfigurator = () => {
     
     return Array.from(strategies);
   };
+  const getStrategyItems = () => {
+    if (transitionType === "time") {
+      return timeIntervals.map(interval => ({
+        id: interval.id,
+        type: interval.strategy,
+        label: `${interval.strategy} (${new Date(interval.startTime * 1000).toLocaleTimeString()} - ${new Date(interval.endTime * 1000).toLocaleTimeString()})`,
+        data: interval
+      }));
+    } else {
+      return priceRanges.map(range => ({
+        id: range.id,
+        type: range.strategy,
+        label: `${range.strategy} ($${range.minPrice} - $${range.maxPrice})`,
+        data: range
+      }));
+    }
+  };
 
-  const handleStrategyUpdate = (strategy: string, data: any) => {
+  const handleStrategyUpdate = (itemId: string, data: any) => {
     setStrategySettings(prev => ({
       ...prev,
-      [strategy]: data
+      [itemId]: data
     }));
   };
 
@@ -131,7 +148,10 @@ export const StrategyConfigurator = () => {
     const strategyArrays: any[] = [];
 
 
-    data.usedStrategies.forEach(strategy => {
+    const items = data.transitionType === "time" ? data.timeIntervals : data.priceRanges;
+    
+    items.forEach(item => {
+      const strategy = item.strategy;
       let start: number;
       let end: number;
       let contractAddress: string;
@@ -139,15 +159,11 @@ export const StrategyConfigurator = () => {
 
       // Get start and end values based on transition type
       if (data.transitionType === "time") {
-        const interval = data.timeIntervals.find(interval => interval.strategy === strategy);
-        if (!interval) return;
-        start = interval.startTime;
-        end = interval.endTime;
+        start = (item as any).startTime;
+        end = (item as any).endTime;
       } else {
-        const range = data.priceRanges.find(range => range.strategy === strategy);
-        if (!range) return;
-        start = range.minPrice;
-        end = range.maxPrice;
+        start = (item as any).minPrice;
+        end = (item as any).maxPrice;
       }
 
       // Get contract address based on strategy
@@ -169,7 +185,8 @@ export const StrategyConfigurator = () => {
       // Construct extraData based on strategy
       if (strategy === "TWAP") {
         // Get TWAP settings
-        const twapSettings = data.strategySettings.TWAP || {};
+        const twapSettings = data.strategySettings[(item as any).id] || {};
+
         const { interval = 60, chunkSize = "1" } = twapSettings;
         
         // Get token decimals
@@ -410,7 +427,8 @@ export const StrategyConfigurator = () => {
             </h3>
           </div>
           <StrategySettingsPanel
-            usedStrategies={getUsedStrategies()}
+            strategyItems={getStrategyItems()}
+
             onStrategyUpdate={handleStrategyUpdate}
           />
         </div>

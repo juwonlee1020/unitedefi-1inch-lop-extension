@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarketPriceListener } from "../MarketPriceListener";
-import { Clock, TrendingUp } from "lucide-react";
+import { Clock } from "lucide-react";
 
 interface TWAPBlockProps {
   id: string;
@@ -56,11 +56,11 @@ export const TWAPBlock = ({ id, onUpdate }: TWAPBlockProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="interval">Interval (minutes)</Label>
+            <Label htmlFor="interval">Interval (seconds)</Label>
             <Input
               id="interval"
               type="number"
-              placeholder="5"
+              placeholder="60"
               value={interval}
               onChange={(e) => setInterval(e.target.value)}
               onBlur={handleUpdate}
@@ -76,6 +76,21 @@ export const TWAPBlock = ({ id, onUpdate }: TWAPBlockProps) => {
               onChange={(e) => setChunkSize(e.target.value)}
               onBlur={handleUpdate}
             />
+          </div>
+        </div>
+
+        {/* TWAP visualization */}
+        <div className="bg-gradient-secondary p-3 rounded-lg">
+          <div className="flex justify-between text-xs text-muted-foreground mb-2">
+            <span>TWAP Execution</span>
+            <span>Time Distribution</span>
+          </div>
+          <div className="h-2 bg-primary/20 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-primary rounded-full w-2/3 transition-all duration-500"></div>
+          </div>
+          <div className="flex justify-between text-xs mt-1">
+            <span className="text-primary">Interval: {interval || "---"}s</span>
+            <span className="text-primary">Chunk: {chunkSize || "---"}</span>
           </div>
         </div>
 

@@ -5,13 +5,20 @@ import { RangeLimitBlock } from "./strategy-blocks/RangeLimitBlock";
 import { DutchAuctionBlock } from "./strategy-blocks/DutchAuctionBlock";
 import { Settings } from "lucide-react";
 
-interface StrategySettingsPanelProps {
-  usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[];
-  onStrategyUpdate: (strategy: string, data: any) => void;
+interface StrategyItem {
+  id: string;
+  type: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION";
+  label: string;
+  data: any;
 }
 
-export const StrategySettingsPanel = ({ usedStrategies, onStrategyUpdate }: StrategySettingsPanelProps) => {
-  if (usedStrategies.length === 0) {
+interface StrategySettingsPanelProps {
+  strategyItems: StrategyItem[];
+  onStrategyUpdate: (itemId: string, data: any) => void;
+}
+
+export const StrategySettingsPanel = ({ strategyItems, onStrategyUpdate }: StrategySettingsPanelProps) => {
+  if (strategyItems.length === 0) {
     return (
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-primary opacity-5 rounded-2xl blur-xl"></div>
@@ -62,26 +69,23 @@ export const StrategySettingsPanel = ({ usedStrategies, onStrategyUpdate }: Stra
         </div>
       </div>
 
-      {usedStrategies.includes("TWAP") && (
-        <TWAPBlock
-          id="twap-settings"
-          onUpdate={(id, data) => onStrategyUpdate("TWAP", data)}
-        />
-      )}
+      {strategyItems.map((item) => {
+        const BlockComponent = item.type === "TWAP" ? TWAPBlock 
+          : item.type === "RANGE_LIMIT" ? RangeLimitBlock 
+          : DutchAuctionBlock;
 
-      {usedStrategies.includes("RANGE_LIMIT") && (
-        <RangeLimitBlock
-          id="range-limit-settings"
-          onUpdate={(id, data) => onStrategyUpdate("RANGE_LIMIT", data)}
-        />
-      )}
-
-      {usedStrategies.includes("DUTCH_AUCTION") && (
-        <DutchAuctionBlock
-          id="dutch-auction-settings"
-          onUpdate={(id, data) => onStrategyUpdate("DUTCH_AUCTION", data)}
-        />
-      )}
+        return (
+          <div key={item.id} className="space-y-2">
+            <div className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
+              {item.label}
+            </div>
+            <BlockComponent
+              id={item.id}
+              onUpdate={(id, data) => onStrategyUpdate(item.id, data)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };
