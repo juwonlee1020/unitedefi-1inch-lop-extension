@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -14,7 +15,8 @@ import {
   BarChart3,
   CheckCircle,
   XCircle,
-  PlayCircle
+  PlayCircle,
+  Zap
 } from "lucide-react";
 import { 
   LineChart, 
@@ -28,6 +30,7 @@ import {
   ComposedChart,
   Bar
 } from "recharts";
+import { useAppSelector } from '@/store';
 
 // Mock data for strategies
 const mockStrategies = [
@@ -128,7 +131,7 @@ const getStrategyColor = (type: string) => {
   }
 };
 
-const StrategyCard = ({ strategy, isExpanded, onToggle }: any) => {
+const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
   const fillPercentage = (parseFloat(strategy.totalFilled) / parseFloat(strategy.makerAmount)) * 100;
   
   return (
@@ -181,6 +184,22 @@ const StrategyCard = ({ strategy, isExpanded, onToggle }: any) => {
         </div>
         
         <Progress value={fillPercentage} className="mt-4" />
+
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTestFill(strategy);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            Test Fill
+          </Button>
+        </div>
+
       </CardHeader>
       
       {isExpanded && (
@@ -282,17 +301,44 @@ const StrategyCard = ({ strategy, isExpanded, onToggle }: any) => {
 };
 
 const StrategyMonitor = () => {
+  const navigate = useNavigate();
+
+  const reduxStrategies = useAppSelector(state => state.strategies.strategies);
   const [expandedStrategy, setExpandedStrategy] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const filteredStrategies = mockStrategies.filter(strategy => 
-    statusFilter === "all" || strategy.status === statusFilter
+  // Take first 2 mock strategies as samples
+  const sampleStrategies = mockStrategies.slice(0, 2);
+
+  // Transform Redux strategies to match the UI format
+  const transformedReduxStrategies = reduxStrategies.map(strategy => ({
+    ...strategy,
+    makerToken: { symbol: strategy.orderParams.makerToken },
+    takerToken: { symbol: strategy.orderParams.takerToken },
+    makerAmount: strategy.orderParams.makerAmount,
+    startTime: new Date(strategy.createdAt),
+    endTime: new Date(strategy.createdAt), // You might want to calculate this based on strategy params
+    fillData: strategy.fillEvents.map(event => ({
+      time: event.timestamp,
+      price: event.fillPrice,
+      cumulative: event.cumulativeAmount
+    })),
+    parameters: strategy.strategyParams || {}
+  }));
+
+  // Combine Redux strategies with sample strategies
+  const allStrategies = [...transformedReduxStrategies, ...sampleStrategies];
+
+  const filteredStrategies = allStrategies.filter(strategy => 
+    statusFilter === "all" || strategy.status.toLowerCase() === statusFilter
   );
 
   const toggleStrategy = (id: string) => {
     setExpandedStrategy(expandedStrategy === id ? null : id);
   };
-
+  const handleTestFill = (strategy: any) => {
+    navigate(`/fill/${strategy.id}`, { state: { strategy } });
+  };
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -347,6 +393,8 @@ const StrategyMonitor = () => {
                 strategy={strategy}
                 isExpanded={expandedStrategy === strategy.id}
                 onToggle={() => toggleStrategy(strategy.id)}
+                onTestFill={handleTestFill}
+
               />
             ))}
           </div>
@@ -355,7 +403,12 @@ const StrategyMonitor = () => {
             <div className="text-center py-12">
               <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">No strategies found</h3>
-              <p className="text-muted-foreground">No strategies match the current filter.</p>
+              <p className="text-muted-foreground">
+                {allStrategies.length === 0 
+                  ? "Create your first strategy in the Configuration page to see it here."
+                  : "No strategies match the current filter."
+                }
+              </p>
             </div>
           )}
         </div>

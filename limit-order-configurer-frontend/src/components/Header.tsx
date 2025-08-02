@@ -94,14 +94,16 @@ useEffect(() => {
           </nav>
         </div>
         
-        <Button
-          variant="wallet"
-          onClick={connectWallet}
-          className="flex items-center gap-2"
-        >
-          <Wallet className="w-4 h-4" />
-          {isConnected ? formatAddress(address) : "Connect Wallet"}
-        </Button>
+        {location.pathname !== "/monitor" && !location.pathname.startsWith("/fill") && (
+          <Button
+            variant="wallet"
+            onClick={connectWallet}
+            className="flex items-center gap-2"
+          >
+            <Wallet className="w-4 h-4" />
+            {isConnected ? formatAddress(address) : "Connect Wallet"}
+          </Button>
+        )}
       </div>
     </header>
   );

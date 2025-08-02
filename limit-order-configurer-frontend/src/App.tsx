@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import StrategyMonitor from "./pages/StrategyMonitor";
+import TestFill from "./pages/TestFill";
+
 
 
 const queryClient = new QueryClient();
@@ -19,7 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/monitor" element={<StrategyMonitor />} />
-
+          <Route path="/fill/:strategyId" element={<TestFill />} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

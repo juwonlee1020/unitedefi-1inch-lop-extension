@@ -13,7 +13,32 @@ import { getAddress } from "ethers";
 import { ethers } from 'ethers';
 import abi from '../abi/limitOrderProtocol.json'; // adjust path if needed
 import swapabi from '../abi/swap.json'; // adjust path if needed
+import { useAppDispatch } from "@/store";
+import { addStrategy } from "@/store/strategiesSlice";
+
 import { CONTRACT_ADDRESSES } from "@/config/addresses";
+
+// Helper function to serialize BigInt values for Redux storage
+const serializeOrderForRedux = (order: any) => {
+  const serialized = { ...order };
+  
+  // Convert BigInt values to strings
+  if (typeof serialized.salt === 'bigint') {
+    serialized.salt = serialized.salt.toString();
+  }
+  if (typeof serialized.makingAmount === 'bigint') {
+    serialized.makingAmount = serialized.makingAmount.toString();
+  }
+  if (typeof serialized.takingAmount === 'bigint') {
+    serialized.takingAmount = serialized.takingAmount.toString();
+  }
+  if (typeof serialized.makerTraits === 'bigint') {
+    serialized.makerTraits = serialized.makerTraits.toString();
+  }
+  
+  return serialized;
+};
+
 interface Token {
   name: string;
   address: string;
@@ -45,6 +70,8 @@ interface PriceRange {
 
 
 export const StrategyConfigurator = () => {
+  const dispatch = useAppDispatch();
+
   const [transitionType, setTransitionType] = useState<"time" | "price">("time");
   const [timeIntervals, setTimeIntervals] = useState<TimeInterval[]>([]);
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
@@ -263,6 +290,34 @@ export const StrategyConfigurator = () => {
 
     // setOrder(order);
     // setSignature(signature);
+
+  
+    // Create strategy name based on used strategies
+    const strategyName = usedStrategies.length === 1 
+      ? usedStrategies[0] 
+      : `Multi-Strategy (${usedStrategies.join(', ')})`;
+
+    // Store strategy in Redux
+    dispatch(addStrategy({
+      name: strategyName,
+      type: usedStrategies[0], // Primary strategy type
+      status: 'ACTIVE',
+      orderParams: {
+        makerToken: orderParameters.makerToken?.symbol || '',
+        takerToken: orderParameters.takerToken?.symbol || '',
+        makerAmount: orderParameters.makerAmount
+      },
+      strategyParams: {
+        transitionType,
+        timeIntervals,
+        priceRanges,
+        strategySettings,
+        usedStrategies
+      },
+      order: serializeOrderForRedux(order),
+
+      signature
+    }));
     toast.success(signature);
   };
 
