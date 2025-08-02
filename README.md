@@ -61,10 +61,10 @@ Sway is designed for **power users and strategy designers** who want to:
 
 ## 📸 Screenshots
 
-<img width="1728" height="1117" alt="Screenshot 2025-07-29 at 5 56 38 AM" src="https://github.com/user-attachments/assets/1877a462-2457-4825-a8e9-393f7d949983" />
-<img width="1728" height="1117" alt="Screenshot 2025-07-29 at 5 59 02 AM" src="https://github.com/user-attachments/assets/8a1b4f92-3e8e-4000-8f9d-b659e7787a21" />
-<img width="1728" height="1117" alt="Screenshot 2025-07-29 at 5 56 53 AM" src="https://github.com/user-attachments/assets/a6aa3467-0a87-40dc-9bd0-c570e2caf600" />
-<img width="1600" height="712" alt="Screenshot 2025-08-01 at 2 29 26 AM" src="https://github.com/user-attachments/assets/7a60b8de-3a3b-490d-8259-502adf65cb92" />
-<img width="1586" height="885" alt="Screenshot 2025-08-01 at 2 29 37 AM" src="https://github.com/user-attachments/assets/26386dd5-56f5-4f18-819d-a8aa0322215a" />
+<img 
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 45 57 PM" src="https://github.com/user-attachments/assets/2eacf592-946f-47ea-b8af-e61d0b6bf27e" />
 
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 10 PM" src="https://github.com/user-attachments/assets/e8ebd380-d9c6-4e89-8ba1-0af5be078d29" />
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 41 PM" src="https://github.com/user-attachments/assets/661aa474-9b72-4092-b88f-237a09f55a47" />
 
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 50 PM" src="https://github.com/user-attachments/assets/626830e6-76cc-49e8-bb7b-c9c3dfceb822" />
