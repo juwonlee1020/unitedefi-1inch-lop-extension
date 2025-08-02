@@ -71,6 +71,7 @@ interface PriceRange {
 
 export const StrategyConfigurator = () => {
   const dispatch = useAppDispatch();
+  const provider = new ethers.BrowserProvider(window.ethereum);
 
   const [transitionType, setTransitionType] = useState<"time" | "price">("time");
   const [timeIntervals, setTimeIntervals] = useState<TimeInterval[]>([]);
@@ -108,7 +109,7 @@ export const StrategyConfigurator = () => {
       return timeIntervals.map(interval => ({
         id: interval.id,
         type: interval.strategy,
-        label: `${interval.strategy} (${new Date(interval.startTime * 1000).toLocaleTimeString()} - ${new Date(interval.endTime * 1000).toLocaleTimeString()})`,
+        label: `${interval.strategy} (${interval.startTime}-${interval.endTime}min)`,
         data: interval
       }));
     } else {
@@ -128,14 +129,14 @@ export const StrategyConfigurator = () => {
     }));
   };
 
-   const getMultiPhaseCalculatorExtraData = (data: {
+  async function  getMultiPhaseCalculatorExtraData (data: {
     orderParameters: OrderParameters;
     transitionType: "time" | "price";
     timeIntervals: TimeInterval[];
     priceRanges: PriceRange[];
     strategySettings: Record<string, any>;
     usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION")[];
-  }) => {
+  }) {
     // This is where you'll implement your strategy execution logic
     console.log("Executing strategy with data:", data);
     
@@ -150,17 +151,26 @@ export const StrategyConfigurator = () => {
 
     const items = data.transitionType === "time" ? data.timeIntervals : data.priceRanges;
     
-    items.forEach(item => {
+    const latestBlock = await provider.getBlock("latest");
+    const now = latestBlock.timestamp;
+
+    
+    items.forEach(async item => {
       const strategy = item.strategy;
       let start: number;
       let end: number;
       let contractAddress: string;
       let extraData: string;
 
+      const twapStart = now + 60;
+      const twapEnd = twapStart + 20 * 60;  // 20 minutes
+      const dutchEnd = twapEnd + 10 * 60;   // 10 minutes after TWAP
+      
       // Get start and end values based on transition type
       if (data.transitionType === "time") {
-        start = (item as any).startTime;
-        end = (item as any).endTime;
+        // Convert minutes to seconds and add to current timestamp
+        start = now + ((item as any).startTime * 60);
+        end = now + ((item as any).endTime * 60);
       } else {
         start = (item as any).minPrice;
         end = (item as any).maxPrice;
@@ -197,14 +207,14 @@ export const StrategyConfigurator = () => {
         const chunkSizeWei = ether(chunkSize);
         const totalAmountWei = ether(data.orderParameters.makerAmount);
         
+
         // Construct TWAP extra data
-        extraData = ethers.AbiCoder.defaultAbiCoder().encode([
-          "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
-        ], [
+        extraData = ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint256", "uint256", "uint256", "address", "uint8", "uint8"],
+          [
           start, // Use the actual start time
-          interval,
-          chunkSizeWei,
-          totalAmountWei,
+          interval, // 60
+          chunkSizeWei, // ether('500)
           CONTRACT_ADDRESSES.DAI_ORACLE,
           makerDecimals,
           takerDecimals
@@ -215,11 +225,36 @@ export const StrategyConfigurator = () => {
           startTime: start,
           endTime: end,
           interval,
-          chunkSize: chunkSizeWei.toString(),
-          totalAmount: totalAmountWei.toString(),
+          chunkSize: chunkSizeWei,
           oracleAddress: CONTRACT_ADDRESSES.DAI_ORACLE,
           makerDecimals,
           takerDecimals
+        });
+      } else if (strategy === "DUTCH_AUCTION") {
+        // Get Dutch auction settings for this specific item
+        const dutchSettings = data.strategySettings[(item as any).id] || {};
+        const { takingAmountStart = "3", takingAmountEnd = "2", duration = "24" } = dutchSettings;
+        const startEndTs = (BigInt(start) << 128n) | BigInt(end);
+        
+        // Convert taking amounts to wei
+        const takingAmountStartWei = ether(takingAmountStart);
+        const takingAmountEndWei = ether(takingAmountEnd);
+        
+        // Pack the Dutch auction extra data
+        const dutchExtraData = ethers.solidityPacked(
+          ['uint256', 'uint256', 'uint256'],
+          [startEndTs, takingAmountStartWei, takingAmountEndWei]
+        );
+        
+        extraData = dutchExtraData;
+        
+        console.log("Dutch Auction Extra Data:", extraData);
+        console.log("Dutch Auction Parameters:", {
+          startTime: start,
+          endTime: dutchEnd,
+          startEndTs: startEndTs.toString(),
+          takingAmountStart: takingAmountStartWei.toString(),
+          takingAmountEnd: takingAmountEndWei.toString(),
         });
       } else {
         // Placeholder for other strategies - implement as needed
@@ -247,34 +282,12 @@ export const StrategyConfigurator = () => {
     
     console.log("Final Extra Data:", extraData);
     return extraData;
-            // const latestBlock = await provider.getBlock("latest");
-
-    // const now = latestBlock.timestamp;
-    // const start = now + 60;   // start in 1 minute
-    // const end = now + 600;    // end in 10 minutes
-
-    
-    // const twapExtraData = ethers.AbiCoder.defaultAbiCoder().encode([
-    //     "uint256", "uint256", "uint256", "uint256", "address", "uint8", "uint8"
-    // ], [start, 60, ether('1'), ether('10'), DAI_ORACLE_ADDRESS, 18, 6]);
-        
-        // console.log("TWAP Extra Data:", twapExtraData);
-        // console.log("TWAP Parameters:", {
-        //   startTime,
-        //   interval,
-        //   chunkSize: chunkSizeWei.toString(),
-        //   totalAmount: totalAmountWei.toString(),
-        //   oracleAddress: CONTRACT_ADDRESSES.DAI_ORACLE,
-        //   makerDecimals,
-        //   takerDecimals
-        // });
-      
     
   };
 
   async function executeStrategy(){
     const usedStrategies = getUsedStrategies();
-    const extraData = getMultiPhaseCalculatorExtraData({
+    const extraData = await getMultiPhaseCalculatorExtraData({
           orderParameters,
           transitionType,
           timeIntervals,
@@ -282,7 +295,6 @@ export const StrategyConfigurator = () => {
           strategySettings,
           usedStrategies
         });
-    const provider = new ethers.BrowserProvider(window.ethereum);
     const maker = await provider.getSigner();
 
     const order = buildOrder({
@@ -303,7 +315,7 @@ export const StrategyConfigurator = () => {
     });
     console.log("order", order)
                 
-    // const signature = await signOrder(order, 31337, CONTRACT_ADDRESSES.SWAP, maker);
+    const signature = await signOrder(order, 31337, CONTRACT_ADDRESSES.SWAP, maker);
 
     // setOrder(order);
     // setSignature(signature);
@@ -338,30 +350,6 @@ export const StrategyConfigurator = () => {
     toast.success(signature);
   };
 
-  async function fillOrder(){
-    const SIG = "0xca199bf3ae66174695e19b5e5be931b36782965bf427c2aeb1127ca56aff8f0a6cab8220ba08a221cd03cdde664bb429d844fba041b0127447e331818c3b68b31b";
-    console.log(signature);
-    console.log("SIG",SIG)
-    console.log("ORDER",order)
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const taker = await provider.getSigner();
-    const swap = new ethers.Contract(SWAP_ADDRESS, swapabi.abi, taker);
-    
-    const { r, yParityAndS: vs } = ethers.Signature.from(signature);
-    // const takerTraits = buildTakerTraits({
-    //     makingAmount: true,
-    //     extension: order.extension,
-    //     threshold: ether('0.08'),
-    // });
-      const takerTraits = buildTakerTraits({
-        makingAmount: true,
-        extension: order.extension,
-        threshold: ether('3200')
-    });
-    const result = await swap.fillOrderArgs(order, r, vs, ether('1'), takerTraits.traits, takerTraits.args);
-    console.log(result)
-
-  }
 
 
   return (
@@ -452,7 +440,7 @@ export const StrategyConfigurator = () => {
               Execute Strategy
             </Button>
 
-                        <Button
+                        {/* <Button
               variant="cta"
               onClick={fillOrder}
               className="group relative overflow-hidden"
@@ -460,7 +448,7 @@ export const StrategyConfigurator = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
               <Play className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform duration-200" />
               fill Strategy
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>

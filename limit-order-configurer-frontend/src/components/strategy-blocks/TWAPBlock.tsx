@@ -11,7 +11,6 @@ interface TWAPBlockProps {
 }
 
 export const TWAPBlock = ({ id, onUpdate }: TWAPBlockProps) => {
-  const [makerAmount, setMakerAmount] = useState("");
   const [interval, setInterval] = useState("");
   const [chunkSize, setChunkSize] = useState("");
   const [priceListenerEnabled, setPriceListenerEnabled] = useState(false);
@@ -21,7 +20,6 @@ export const TWAPBlock = ({ id, onUpdate }: TWAPBlockProps) => {
   const handleUpdate = () => {
     onUpdate?.(id, {
       type: "TWAP",
-      makerAmount,
       interval,
       chunkSize,
       priceListener: {
@@ -43,18 +41,7 @@ export const TWAPBlock = ({ id, onUpdate }: TWAPBlockProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="maker-amount">Maker Amount</Label>
-            <Input
-              id="maker-amount"
-              type="number"
-              placeholder="1000"
-              value={makerAmount}
-              onChange={(e) => setMakerAmount(e.target.value)}
-              onBlur={handleUpdate}
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="interval">Interval (seconds)</Label>
             <Input

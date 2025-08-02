@@ -11,8 +11,8 @@ interface DutchAuctionBlockProps {
 }
 
 export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
-  const [startPrice, setStartPrice] = useState("");
-  const [endPrice, setEndPrice] = useState("");
+  const [takingAmountStart, setTakingAmountStart] = useState("");
+  const [takingAmountEnd, setTakingAmountEnd] = useState("");
   const [duration, setDuration] = useState("");
   const [priceListenerEnabled, setPriceListenerEnabled] = useState(false);
   const [minPrice, setMinPrice] = useState("");
@@ -21,8 +21,8 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
   const handleUpdate = () => {
     onUpdate?.(id, {
       type: "DUTCH_AUCTION",
-      startPrice,
-      endPrice,
+      takingAmountStart,
+      takingAmountEnd,
       duration,
       priceListener: {
         enabled: priceListenerEnabled,
@@ -45,24 +45,24 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="start-price">Start Price</Label>
+            <Label htmlFor="taking-amount-start">Taking Amount Start</Label>
             <Input
-              id="start-price"
+              id="taking-amount-start"
               type="number"
-              placeholder="3500"
-              value={startPrice}
-              onChange={(e) => setStartPrice(e.target.value)}
+              placeholder="3"
+              value={takingAmountStart}
+              onChange={(e) => setTakingAmountStart(e.target.value)}
               onBlur={handleUpdate}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="end-price">End Price</Label>
+            <Label htmlFor="taking-amount-end">Taking Amount End</Label>
             <Input
-              id="end-price"
+              id="taking-amount-end"
               type="number"
-              placeholder="3000"
-              value={endPrice}
-              onChange={(e) => setEndPrice(e.target.value)}
+              placeholder="2"
+              value={takingAmountEnd}
+              onChange={(e) => setTakingAmountEnd(e.target.value)}
               onBlur={handleUpdate}
             />
           </div>
@@ -94,9 +94,9 @@ export const DutchAuctionBlock = ({ id, onUpdate }: DutchAuctionBlockProps) => {
             ></div>
           </div>
           <div className="flex justify-between text-xs mt-1">
-            <span className="text-primary">${startPrice || "---"}</span>
-            <span className="text-muted-foreground">${duration || "---"}h</span>
-            <span className="text-primary">${endPrice || "---"}</span>
+            <span className="text-primary">{takingAmountStart || "---"} ETH</span>
+            <span className="text-muted-foreground">{duration || "---"}h</span>
+            <span className="text-primary">{takingAmountEnd || "---"} ETH</span>
           </div>
         </div>
 
