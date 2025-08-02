@@ -69,7 +69,6 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
             [twapStart, interval, chunkAmount, await daiOracle.getAddress(), 18, 18]
         );
 
-
         const startEndTs = (BigInt(twapEnd) << 128n) | BigInt(dutchEnd);
 
         const takingAmountStart = ether('3'); // 10,000 DAI * 0.0003 WETH/DAI
@@ -78,27 +77,6 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
             ['uint256', 'uint256', 'uint256'],
             [startEndTs, takingAmountStart, takingAmountEnd]
         );
-        //    const ts = BigInt(await time.latest());
-        // const startEndTs = (ts << 128n) | (ts + 86400n);
-        // const order = buildOrder(
-        //     {
-        //         makerAsset: await dai.getAddress(),
-        //         takerAsset: await weth.getAddress(),
-        //         makingAmount: ether('100'),
-        //         takingAmount: ether('0.1'),
-        //         maker: addr.address,
-        //     },
-        //     {
-        //         makingAmountData: ethers.solidityPacked(
-        //             ['address', 'uint256', 'uint256', 'uint256'],
-        //             [await dutchAuctionCalculator.getAddress(), startEndTs.toString(), ether('0.1'), ether('0.05')],
-        //         ),
-        //         takingAmountData: ethers.solidityPacked(
-        //             ['address', 'uint256', 'uint256', 'uint256'],
-        //             [await dutchAuctionCalculator.getAddress(), startEndTs.toString(), ether('0.1'), ether('0.05')],
-        //         ),
-        //     },
-        // );
 
         const extraData = ethers.AbiCoder.defaultAbiCoder().encode(
             ["bool", "address", "tuple(uint256,uint256,address,bytes)[]"],
@@ -140,53 +118,53 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
         };
     }
 
-    // it('reverts if fill exceeds unlocked (chunk-based TWAP)', async function () {
-    //     const {
-    //         dai, weth, swap, multiPhase, order, signature,  twapStart, twapEnd,dutchEnd
-    //     } = await loadFixture(deployAndBuildOrder);
+    it('reverts if fill exceeds unlocked (chunk-based TWAP)', async function () {
+        const {
+            dai, weth, swap, multiPhase, order, signature,  twapStart, twapEnd,dutchEnd
+        } = await loadFixture(deployAndBuildOrder);
 
-    //     await time.increaseTo(twapStart + 120); // 2 intervals = 2 chunks = 1000 DAI
+        await time.increaseTo(twapStart + 120); // 2 intervals = 2 chunks = 1000 DAI
 
-    //     const { r, yParityAndS: vs } = ethers.Signature.from(signature);
-    //     const takerTraits = buildTakerTraits({
-    //         makingAmount: true,
-    //         extension: order.extension,
-    //     });
+        const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+        const takerTraits = buildTakerTraits({
+            makingAmount: true,
+            extension: order.extension,
+        });
 
-    //     // Trying to fill 3000 DAI should revert
-    //     await expect(
-    //         swap.connect(taker).fillOrderArgs(order, r, vs, ether('3000'), takerTraits.traits, takerTraits.args)
-    //     ).to.be.revertedWithCustomError(multiPhase, "RequestedExceedsUnlocked");
-    // });
+        // Trying to fill 3000 DAI should revert
+        await expect(
+            swap.connect(taker).fillOrderArgs(order, r, vs, ether('3000'), takerTraits.traits, takerTraits.args)
+        ).to.be.revertedWithCustomError(multiPhase, "RequestedExceedsUnlocked");
+    });
 
-    // it('allows fill within unlocked chunk limit and updates balances correctly', async function () {
-    //     const {
-    //         dai, weth, swap, multiPhase, order, signature,  twapStart, twapEnd,dutchEnd, makerDaiBefore,takerDaiBefore,makerWethBefore,takerWethBefore
-    //     } = await loadFixture(deployAndBuildOrder);
+    it('allows fill within unlocked chunk limit and updates balances correctly', async function () {
+        const {
+            dai, weth, swap, multiPhase, order, signature,  twapStart, twapEnd,dutchEnd, makerDaiBefore,takerDaiBefore,makerWethBefore,takerWethBefore
+        } = await loadFixture(deployAndBuildOrder);
 
-    //     await time.increaseTo(twapStart + 120); // 2 intervals = 2 chunks = 1000 DAI
+        await time.increaseTo(twapStart + 120); // 2 intervals = 2 chunks = 1000 DAI
 
-    //     const { r, yParityAndS: vs } = ethers.Signature.from(signature);
-    //     const takerTraits = buildTakerTraits({
-    //         makingAmount: true,
-    //         extension: order.extension,
-    //         threshold: ether('0.226') // buffer for rounding
-    //     });
-    //     const fillAmount = ether('900');
-    //     await swap.connect(taker).fillOrderArgs(order, r, vs, fillAmount, takerTraits.traits, takerTraits.args);
+        const { r, yParityAndS: vs } = ethers.Signature.from(signature);
+        const takerTraits = buildTakerTraits({
+            makingAmount: true,
+            extension: order.extension,
+            threshold: ether('0.226') // buffer for rounding
+        });
+        const fillAmount = ether('900');
+        await swap.connect(taker).fillOrderArgs(order, r, vs, fillAmount, takerTraits.traits, takerTraits.args);
 
-    //     // Check DAI balances
-    //     expect(await dai.balanceOf(maker.address)).to.equal(makerDaiBefore - fillAmount);
-    //     expect(await dai.balanceOf(taker.address)).to.equal(takerDaiBefore + fillAmount);
+        // Check DAI balances
+        expect(await dai.balanceOf(maker.address)).to.equal(makerDaiBefore - fillAmount);
+        expect(await dai.balanceOf(taker.address)).to.equal(takerDaiBefore + fillAmount);
 
-    //     // Check WETH balances (based on mock price of 0.00025 WETH per 1 DAI)
-    //     const wethOut = fillAmount * BigInt(25) / BigInt(100000); // = fillAmount * 0.00025
-    //     const makerExpectedWeth = makerWethBefore + wethOut;
-    //     const takerExpectedWeth = takerWethBefore - wethOut;
+        // Check WETH balances (based on mock price of 0.00025 WETH per 1 DAI)
+        const wethOut = fillAmount * BigInt(25) / BigInt(100000); // = fillAmount * 0.00025
+        const makerExpectedWeth = makerWethBefore + wethOut;
+        const takerExpectedWeth = takerWethBefore - wethOut;
 
-    //     assertRoughlyEqualValues(await weth.balanceOf(maker.address), makerExpectedWeth, 1);
-    //     assertRoughlyEqualValues(await weth.balanceOf(taker.address), takerExpectedWeth, 1);
-    // });
+        assertRoughlyEqualValues(await weth.balanceOf(maker.address), makerExpectedWeth, 1);
+        assertRoughlyEqualValues(await weth.balanceOf(taker.address), takerExpectedWeth, 1);
+    });
     it('uses DutchAuctionCalculator after TWAP phase ends (correct takingAmount logic)', async function () {
         const {
             dai, weth, swap, multiPhase, order, signature,
