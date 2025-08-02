@@ -9,7 +9,7 @@ async function main() {
   console.log(`📌 Start time (now + 60): ${start} (${new Date(start * 1000).toISOString()})`);
   console.log(`📌 End time (now + 600): ${end} (${new Date(end * 1000).toISOString()})`);
 
-  const target = start + 180;
+  const target = start + 120;
   console.log(`🚀 Advancing time to: ${target} (${new Date(target * 1000).toISOString()})`);
 
   await time.increaseTo(target);

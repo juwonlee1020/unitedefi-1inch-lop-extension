@@ -50,7 +50,7 @@ contract MultiPhaseAmountCalculator is IAmountGetter {
         bytes32 orderHash,
         address taker,
         uint256 makingAmount,
-        uint256 remainingMakingAmount,
+        uint256 remainngMakingAmount,
         bytes calldata extraData
     ) external view override returns (uint256) {
         (bool useTime, address oracle, Phase[] memory phases) = decodeExtraData(extraData);
