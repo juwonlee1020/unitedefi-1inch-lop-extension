@@ -64,3 +64,7 @@ Submit orders to 1inch API in production
 🫶 Credits
 Huge thanks to the 1inch team for building a highly composable and extensible Limit Order Protocol. Sway builds on top of that foundation to empower users with smarter execution strategies on-chain.
 
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 45 57 PM" src="https://github.com/user-attachments/assets/63864e5a-5649-482f-9a8a-f1648b5514a1" />
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 10 PM" src="https://github.com/user-attachments/assets/295be51e-3ccd-4efd-999d-5d6fb988cc15" />
+<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 41 PM" src="https://github.com/user-attachments/assets/619e16dc-a35e-4eeb-a339-34ad73357bcb" />
+<img width="1728" height="1117" alt="Screenshot 2025-08-03 at 11 33 57 AM" src="https://github.com/user-attachments/assets/129a8edf-a820-408b-b041-e2f2289c0ac9" />
