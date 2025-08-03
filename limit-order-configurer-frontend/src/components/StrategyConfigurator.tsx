@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { OrderParametersForm } from "./OrderParametersForm";
 import { TransitionTypeSelector } from "./TransitionTypeSelector";
 import { TimeBasedConfigurator } from "./TimeBasedConfigurator";
-import { PriceBasedConfigurator } from "./PriceBasedConfigurator";
+import { MarketConditionConfigurator } from "./MarketConditionConfigurator";
+
 import { StrategySettingsPanel } from "./StrategySettingsPanel";
 import { Play } from "lucide-react";
 import { toast } from "sonner";
@@ -60,13 +61,13 @@ interface TimeInterval {
   strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
 
-interface PriceRange {
+interface MarketConditionRange {
   id: string;
-  minPrice: number;
-  maxPrice: number;
+  minValue: number;
+  maxValue: number;
   strategy: "TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED";
 }
-
+type MarketConditionType = "price-based" | "volatility-based" | "liquidity-based" | "aave-yield-based";
 
 
 export const StrategyConfigurator = () => {
@@ -75,7 +76,8 @@ export const StrategyConfigurator = () => {
 
   const [transitionType, setTransitionType] = useState<"time" | "price">("time");
   const [timeIntervals, setTimeIntervals] = useState<TimeInterval[]>([]);
-  const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
+  const [marketConditionType, setMarketConditionType] = useState<MarketConditionType | null>(null);
+  const [marketConditionRanges, setMarketConditionRanges] = useState<MarketConditionRange[]>([]);
   const [strategySettings, setStrategySettings] = useState<Record<string, any>>({});
   const [orderParameters, setOrderParameters] = useState<OrderParameters>({
     makerToken: null,
@@ -99,7 +101,7 @@ export const StrategyConfigurator = () => {
     if (transitionType === "time") {
       timeIntervals.forEach(interval => strategies.add(interval.strategy));
     } else {
-      priceRanges.forEach(range => strategies.add(range.strategy));
+      marketConditionRanges.forEach(range => strategies.add(range.strategy));
     }
     
     return Array.from(strategies);
@@ -113,10 +115,10 @@ export const StrategyConfigurator = () => {
         data: interval
       }));
     } else {
-      return priceRanges.map(range => ({
+      return marketConditionRanges.map(range => ({
         id: range.id,
         type: range.strategy,
-        label: `${range.strategy} ($${range.minPrice} - $${range.maxPrice})`,
+        label: `${range.strategy} (${range.minValue} - ${range.maxValue})`,
         data: range
       }));
     }
@@ -133,7 +135,7 @@ export const StrategyConfigurator = () => {
     orderParameters: OrderParameters;
     transitionType: "time" | "price";
     timeIntervals: TimeInterval[];
-    priceRanges: PriceRange[];
+    marketConditionRanges: MarketConditionRange[];
     strategySettings: Record<string, any>;
     usedStrategies: ("TWAP" | "RANGE_LIMIT" | "DUTCH_AUCTION" | "PRENEGOTIATED")[];
   }) {
@@ -149,7 +151,7 @@ export const StrategyConfigurator = () => {
     const strategyArrays: any[] = [];
 
 
-    const items = data.transitionType === "time" ? data.timeIntervals : data.priceRanges;
+    const items = data.transitionType === "time" ? data.timeIntervals : data.marketConditionRanges;
     
     const latestBlock = await provider.getBlock("latest");
     const now = latestBlock.timestamp;
@@ -172,8 +174,8 @@ export const StrategyConfigurator = () => {
         start = now + ((item as any).startTime * 60);
         end = now + ((item as any).endTime * 60);
       } else {
-        start = (item as any).minPrice;
-        end = (item as any).maxPrice;
+        start = (item as any).minValue;
+        end = (item as any).maxValue;
       }
 
       // Get contract address based on strategy
@@ -291,7 +293,7 @@ export const StrategyConfigurator = () => {
           orderParameters,
           transitionType,
           timeIntervals,
-          priceRanges,
+          marketConditionRanges,
           strategySettings,
           usedStrategies
         });
@@ -339,7 +341,7 @@ export const StrategyConfigurator = () => {
       strategyParams: {
         transitionType,
         timeIntervals,
-        priceRanges,
+        marketConditionRanges,
         strategySettings,
         usedStrategies
       },
@@ -422,7 +424,7 @@ export const StrategyConfigurator = () => {
           strategyParams: {
             transitionType,
             timeIntervals,
-            priceRanges,
+            marketConditionRanges,
             strategySettings,
             usedStrategies
           },
@@ -482,9 +484,11 @@ export const StrategyConfigurator = () => {
               onIntervalsChange={setTimeIntervals}
             />
           ) : (
-            <PriceBasedConfigurator
-              ranges={priceRanges}
-              onRangesChange={setPriceRanges}
+            <MarketConditionConfigurator
+              conditionType={marketConditionType}
+              onConditionTypeChange={setMarketConditionType}
+              ranges={marketConditionRanges}
+              onRangesChange={setMarketConditionRanges}
             />
           )}
         </div>

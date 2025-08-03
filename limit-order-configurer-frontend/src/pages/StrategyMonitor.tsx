@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNavigate } from "react-router-dom";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -36,25 +36,40 @@ import { useAppSelector } from '@/store';
 const mockStrategies = [
   {
     id: "1",
-    status: "active",
-    type: "TWAP",
-    makerToken: { symbol: "USDC", address: "0x..." },
-    takerToken: { symbol: "ETH", address: "0x..." },
+    status: "done",
+    type: "TWAP → DUTCH_AUCTION → PRENEGOTIATED",
+    makerToken: { symbol: "DAI", address: "0x..." },
+    takerToken: { symbol: "WETH", address: "0x..." },
     makerAmount: "10000",
-    totalFilled: "6500",
-    averageFillPrice: "2850.45",
-    startTime: new Date("2024-01-15"),
-    endTime: new Date("2024-01-20"),
+    totalFilled: "10000",
+    averageFillPrice: "0.000235",
+    startTime: new Date("2024-01-15T10:00:00"),
+    endTime: new Date("2024-01-15T10:35:00"),
     fillData: [
-      { time: "2024-01-15T10:00:00", price: 2800, cumulative: 1000 },
-      { time: "2024-01-15T14:00:00", price: 2820, cumulative: 2200 },
-      { time: "2024-01-16T09:00:00", price: 2840, cumulative: 3500 },
-      { time: "2024-01-16T15:00:00", price: 2880, cumulative: 4800 },
-      { time: "2024-01-17T11:00:00", price: 2850, cumulative: 6500 },
+      // TWAP phase (0-20 minutes) - random realistic prices around 0.00025
+      { time: "2024-01-15T10:02:00", price: 0.000248, cumulative: 800, strategy: "TWAP" },
+      { time: "2024-01-15T10:05:00", price: 0.000252, cumulative: 1600, strategy: "TWAP" },
+      { time: "2024-01-15T10:08:00", price: 0.000249, cumulative: 2400, strategy: "TWAP" },
+      { time: "2024-01-15T10:11:00", price: 0.000251, cumulative: 3200, strategy: "TWAP" },
+      { time: "2024-01-15T10:14:00", price: 0.000247, cumulative: 4000, strategy: "TWAP" },
+      { time: "2024-01-15T10:17:00", price: 0.000253, cumulative: 4800, strategy: "TWAP" },
+      { time: "2024-01-15T10:20:00", price: 0.000250, cumulative: 5600, strategy: "TWAP" },
+      
+      // DUTCH_AUCTION phase (20-30 minutes) - linearly decreasing from 0.00025 to 0.00022
+      { time: "2024-01-15T10:22:00", price: 0.000244, cumulative: 6200, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-15T10:24:00", price: 0.000238, cumulative: 6800, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-15T10:26:00", price: 0.000232, cumulative: 7400, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-15T10:28:00", price: 0.000226, cumulative: 8000, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-15T10:30:00", price: 0.000220, cumulative: 8600, strategy: "DUTCH_AUCTION" },
+      
+      // PRENEGOTIATED phase (30+ minutes) - fixed price at 0.00020
+      { time: "2024-01-15T10:32:00", price: 0.000200, cumulative: 9300, strategy: "PRENEGOTIATED" },
+      { time: "2024-01-15T10:35:00", price: 0.000200, cumulative: 10000, strategy: "PRENEGOTIATED" },
     ],
     parameters: {
-      timeInterval: "4 hours",
-      orderCount: "20",
+      phase1: "TWAP (20min)",
+      phase2: "Dutch Auction (10min)", 
+      phase3: "Prenegotiated (5min)",
       slippageTolerance: "0.5%"
     }
   },
@@ -67,19 +82,19 @@ const mockStrategies = [
     makerAmount: "50000",
     totalFilled: "50000",
     averageFillPrice: "65420.30",
-    startTime: new Date("2024-01-10"),
-    endTime: new Date("2024-01-12"),
+    startTime: new Date("2024-01-10T14:00:00"),
+    endTime: new Date("2024-01-10T16:00:00"),
     fillData: [
-      { time: "2024-01-10T10:00:00", price: 66000, cumulative: 10000 },
-      { time: "2024-01-10T16:00:00", price: 65800, cumulative: 25000 },
-      { time: "2024-01-11T08:00:00", price: 65600, cumulative: 35000 },
-      { time: "2024-01-11T20:00:00", price: 65200, cumulative: 45000 },
-      { time: "2024-01-12T14:00:00", price: 65000, cumulative: 50000 },
+      { time: "2024-01-10T14:00:00", price: 66000, cumulative: 10000, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-10T14:30:00", price: 65800, cumulative: 25000, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-10T15:00:00", price: 65600, cumulative: 35000, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-10T15:30:00", price: 65200, cumulative: 45000, strategy: "DUTCH_AUCTION" },
+      { time: "2024-01-10T15:50:00", price: 65000, cumulative: 50000, strategy: "DUTCH_AUCTION" },
     ],
     parameters: {
       startPrice: "$66,000",
       endPrice: "$65,000",
-      duration: "48 hours"
+      duration: "2 hours"
     }
   },
   {
@@ -91,15 +106,15 @@ const mockStrategies = [
     makerAmount: "5000",
     totalFilled: "1200",
     averageFillPrice: "0.85",
-    startTime: new Date("2024-01-18"),
-    endTime: new Date("2024-01-25"),
+    startTime: new Date("2024-01-18T09:00:00"),
+    endTime: new Date("2024-01-18T10:20:00"),
     fillData: [
-      { time: "2024-01-18T10:00:00", price: 0.86, cumulative: 500 },
-      { time: "2024-01-18T18:00:00", price: 0.84, cumulative: 1200 },
+      { time: "2024-01-18T09:00:00", price: 0.86, cumulative: 500, strategy: "TWAP" },
+      { time: "2024-01-18T09:45:00", price: 0.84, cumulative: 1200, strategy: "TWAP" },
     ],
     parameters: {
-      timeInterval: "8 hours",
-      orderCount: "15",
+      timeInterval: "45 minutes",
+      orderCount: "2",
       slippageTolerance: "1%"
     }
   }
@@ -127,8 +142,45 @@ const getStrategyColor = (type: string) => {
   switch (type) {
     case "TWAP": return "#e11d48";
     case "DUTCH_AUCTION": return "#3b82f6";
+    case "PRENEGOTIATED": return "#10b981";
     default: return "#8b5cf6";
   }
+};
+
+const getPointColor = (strategy: string) => {
+  switch (strategy) {
+    case "TWAP": return "#e11d48";
+    case "DUTCH_AUCTION": return "#3b82f6";
+    case "PRENEGOTIATED": return "#10b981";
+    default: return "#8b5cf6";
+  }
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+        <p className="text-sm text-muted-foreground">
+          {new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+        <p className="text-sm font-medium">
+          Price: <span className="text-foreground">{data.price.toFixed(6)}</span>
+        </p>
+        <p className="text-sm font-medium">
+          Cumulative: <span className="text-foreground">{data.cumulative}</span>
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: getPointColor(data.strategy) }}
+          />
+          <span className="text-sm font-medium text-foreground">{data.strategy}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
 };
 
 const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
@@ -184,7 +236,7 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
         </div>
         
         <Progress value={fillPercentage} className="mt-4" />
-
+        
         <div className="mt-4 flex justify-end">
           <Button
             variant="outline"
@@ -199,7 +251,6 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
             Test Fill
           </Button>
         </div>
-
       </CardHeader>
       
       {isExpanded && (
@@ -215,11 +266,11 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-surface-elevated p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Start Time</p>
-                  <p className="font-semibold">{strategy.startTime.toLocaleDateString()}</p>
+                  <p className="font-semibold">{strategy.startTime.toLocaleString()}</p>
                 </div>
                 <div className="bg-surface-elevated p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">End Time</p>
-                  <p className="font-semibold">{strategy.endTime.toLocaleDateString()}</p>
+                  <p className="font-semibold">{strategy.endTime.toLocaleString()}</p>
                 </div>
                 <div className="bg-surface-elevated p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Maker Token</p>
@@ -241,7 +292,7 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
                       dataKey="time" 
                       stroke="hsl(var(--muted-foreground))"
                       fontSize={12}
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                      tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     />
                     <YAxis 
                       yAxisId="price"
@@ -255,20 +306,26 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
                       stroke="hsl(var(--muted-foreground))"
                       fontSize={12}
                     />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px"
-                      }}
-                    />
+                    <Tooltip content={<CustomTooltip />} />
                     <Line 
                       yAxisId="price"
                       type="monotone" 
                       dataKey="price" 
                       stroke={getStrategyColor(strategy.type)}
                       strokeWidth={2}
-                      dot={{ fill: getStrategyColor(strategy.type), strokeWidth: 2, r: 4 }}
+                      dot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill={getPointColor(payload.strategy)}
+                            stroke={getPointColor(payload.strategy)}
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
                     />
                     <Bar 
                       yAxisId="cumulative"
@@ -302,7 +359,6 @@ const StrategyCard = ({ strategy, isExpanded, onToggle, onTestFill }: any) => {
 
 const StrategyMonitor = () => {
   const navigate = useNavigate();
-
   const reduxStrategies = useAppSelector(state => state.strategies.strategies);
   const [expandedStrategy, setExpandedStrategy] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -336,9 +392,11 @@ const StrategyMonitor = () => {
   const toggleStrategy = (id: string) => {
     setExpandedStrategy(expandedStrategy === id ? null : id);
   };
+
   const handleTestFill = (strategy: any) => {
     navigate(`/fill/${strategy.id}`, { state: { strategy } });
   };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -394,7 +452,6 @@ const StrategyMonitor = () => {
                 isExpanded={expandedStrategy === strategy.id}
                 onToggle={() => toggleStrategy(strategy.id)}
                 onTestFill={handleTestFill}
-
               />
             ))}
           </div>

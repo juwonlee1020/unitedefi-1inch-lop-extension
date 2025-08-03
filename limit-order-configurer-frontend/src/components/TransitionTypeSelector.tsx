@@ -73,15 +73,15 @@ export const TransitionTypeSelector = ({ selected, onSelect }: TransitionTypeSel
                   <TrendingUp className={`w-8 h-8 ${selected === "price" ? "text-white" : "text-primary"}`} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className={`text-lg font-semibold font-inter ${
+                   <h3 className={`text-lg font-semibold font-inter ${
                     selected === "price" ? "text-white" : "text-foreground"
                   }`}>
-                    Price-based Transitions
+                    Market Condition-based Transitions
                   </h3>
                   <p className={`text-sm leading-relaxed ${
                     selected === "price" ? "text-white/80" : "text-muted-foreground"
                   }`}>
-                    Adapt strategies dynamically based on real-time market price movements and ranges
+                    Adapt strategies dynamically based on real-time market conditions powered by specialized oracles
                   </p>
                 </div>
               </div>
