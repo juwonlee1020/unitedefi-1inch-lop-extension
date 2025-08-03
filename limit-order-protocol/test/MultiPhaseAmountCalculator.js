@@ -5,21 +5,6 @@ const { deploySwapTokens } = require('./helpers/fixtures');
 const { buildOrder, signOrder, buildTakerTraits } = require('./helpers/orderUtils');
 const { ethers } = require('hardhat');
 
-// ### **Phase 1: 0–8 min (TWAP)**
-
-// - Objective: Minimize market impact by slicing up the order over time.
-// - Use case: Ideal when user wants to blend into the market,
-
-// ### **Phase 2: 8–10 min (Dutch Auction)**
-
-// - Objective: Begin discounting the price over time to increase urgency.
-// - Use case: Useful if TWAP didn’t fully fill and the user wants more aggressive execution, but still market-driven.
-
-// ### **Phase 3: >10 min (Fixed Price to Whitelist Address)**
-
-// - Objective: If still unfilled, send remaining to known buyer(s) at a pre-negotiated price.
-// - Use case: Guarantees the final execution, potentially to a treasury, OTC buyer
-
 
 describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function () {
     let maker, taker;
@@ -115,7 +100,7 @@ describe('MultiPhaseAmountCalculator (integration, chunk-based TWAP)', function 
                 await daiOracle.getAddress(),
                 [
                     [twapStart, twapEnd, await twap.getAddress(), twapExtraData],
-                    [twapEnd, dutchEnd, await dutchAuctionCalculator.getAddress(), dutchExtraData]
+                    [twapEnd, dutchEnd, await dutchAuctionCalculator.getAddress(), dutchExtraData],
                     [dutchEnd, preEnd, await prenegotiatedCalculator.getAddress(), prenegotiatedExtraData]
 
                 ]

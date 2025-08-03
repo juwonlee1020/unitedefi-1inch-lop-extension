@@ -20,7 +20,6 @@ contract MultiPhaseAmountCalculator is IAmountGetter {
     function decodeExtraData(bytes calldata extraData) internal pure returns (bool, address, Phase[] memory) {
         require(extraData.length > 0, "ExtraData is empty");
 
-        // ✅ Decode using Solidity's built-in ABI decoder
         (bool useTime, address oracle, Phase[] memory phases) =
             abi.decode(extraData, (bool, address, Phase[]));
 
@@ -50,7 +49,7 @@ contract MultiPhaseAmountCalculator is IAmountGetter {
         bytes32 orderHash,
         address taker,
         uint256 makingAmount,
-        uint256 remainngMakingAmount,
+        uint256 remainingMakingAmount,
         bytes calldata extraData
     ) external view override returns (uint256) {
         (bool useTime, address oracle, Phase[] memory phases) = decodeExtraData(extraData);
