@@ -1,70 +1,66 @@
-# 🌊 Sway — Strategy-Based Limit Order Configurator
+# 🌊 Sway — Smarter On-Chain Execution Strategies
 
-**Sway** is a modular, programmable limit order configurator that gives DeFi users fine-grained control over how their orders are executed — over time or based on price.
+**Sway** is a decentralized trading application built on top of the [1inch Limit Order Protocol](https://docs.1inch.io/docs/limit-order-protocol/overview/), allowing users to configure complex, multi-phase execution strategies for trading on-chain assets.
 
-This tool was built for a hackathon to explore creative extensions of 1inch Fusion's order framework, allowing users to construct execution strategies using TWAP, Range Limit, or Dutch Auction logic, all while referencing real-time price data from Chainlink oracles.
-
----
-
-## 🚀 Features
-
-- **Strategy Composer UI**: Users can visually define custom order logic using one of:
-  - **TWAP (Time-Weighted Average Price)**: break orders into equal-sized chunks at fixed time intervals
-  - **Range Limit Order**: gradually sell across a price range
-  - **Dutch Auction**: decay the price over time until filled
-- **Single Transition Rule**: Choose either time-based or price-based switching between strategies
-- **Order Direction Support**: Supports both **buy** and **sell** orders
-- **Market Price Listeners**: Optional fill prevention logic based on live Chainlink oracle data
-- **MetaMask Wallet Integration**: Connect wallet, preview strategy, sign and deploy on-chain
+Instead of being locked into a single execution style—like TWAP, Dutch auction, or fixed-price—Sway lets users compose strategies that evolve over time or react to market conditions, all encoded into a single smart order.
 
 ---
 
-## 🧱 Tech Stack
+## 🧠 Core Concept
 
-| Tech        | Purpose                                 |
-|-------------|-----------------------------------------|
-| **React**   | UI framework                            |
-| **Next.js** | (if used) Server-side support / routing |
-| **Vite**    | Lightning-fast frontend bundling        |
-| **Redux Toolkit** | App state management for strategies |
-| **TailwindCSS** / ShadCN | Styling + component system       |
-| **Ethers.js** | Wallet connection & contract calls     |
-| **1inch Fusion SDK** | Smart order placement infrastructure |
-| **Chainlink Oracles** | Real-time price feeds for strategy control |
-| **Solidity (TWAPCalculator etc.)** | Custom strategy logic onchain |
+The heart of Sway is a modular smart contract system centered around `MultiPhaseAmountCalculator`, a custom `IAmountGetter` implementation. This contract:
+
+- Supports chaining multiple execution phases in a single order
+- Allows each phase to use a different pricing strategy (TWAP, Dutch auction, OTC)
+- Selects the active phase based on **time** or **on-chain oracle data**
+
+Each order becomes a programmable execution flow rather than a static trade.
 
 ---
 
-## 🎯 Use Case
+## ✨ Example Use Case
 
-Sway is designed for **power users and strategy designers** who want to:
+A user wants to swap **10,000 DAI for WETH** using this strategy:
 
-- Automate limit order execution over time or based on price
-- Choose the best strategy based on changing market conditions
-- Stay fully onchain and decentralized
+1. **Phase 1 (TWAP):** Over the first 20 minutes, sell small chunks to blend into the market.
+2. **Phase 2 (Dutch Auction):** If not fully filled, start discounting the price to encourage fills.
+3. **Phase 3 (OTC):** After 10 more minutes, sell any remaining DAI at a fixed discount to pre-approved addresses.
 
----
-
-## 🧪 Example Strategies
-
-- **Time-based:**
-  - Sell 100 ETH using TWAP over 30 minutes  
-  - If not filled, switch to Dutch Auction for remaining amount
-
-- **Price-based:**
-  - Sell 10 ETH:
-    - If ETH < $2900 → Use Dutch Auction  
-    - $2900–$3200 → Use TWAP  
-    - >$3200 → Use Range Limit
+Each phase is defined with custom parameters and bundled into the order via `MultiPhaseAmountCalculator`.
 
 ---
 
-## 📸 Screenshots
+## 🛠️ Tech Stack
 
-<img 
-<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 45 57 PM" src="https://github.com/user-attachments/assets/2eacf592-946f-47ea-b8af-e61d0b6bf27e" />
+### Smart Contracts Additions
 
-<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 10 PM" src="https://github.com/user-attachments/assets/e8ebd380-d9c6-4e89-8ba1-0af5be078d29" />
-<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 41 PM" src="https://github.com/user-attachments/assets/661aa474-9b72-4092-b88f-237a09f55a47" />
+- `MultiPhaseAmountCalculator`: Orchestrates the sequence of execution phases.
+- `TWAPCalculator`: Time-weighted average price execution.
+- `PrenegotiatedCalculator`: Fixed price for OTC-style fill.
+These smart contracts can be found under: limit-order-protocol/contracts/extensions.
+Tests for each of these smart contracts can be found under: limit-order-protocol/contracts/test.
 
-<img width="1728" height="1117" alt="Screenshot 2025-08-02 at 5 46 50 PM" src="https://github.com/user-attachments/assets/626830e6-76cc-49e8-bb7b-c9c3dfceb822" />
+Please refer to limit-order-protocol/contracts/test/MultiPhaseAmountCalculator.js for an example on how to configure a multi phase execution strategy using these building blocks.
+
+
+### Frontend
+
+- **React** + **Vite**
+- Connects to configured blockchain using MetaMask
+- Addresses of smart contracts deployed need to be configured under: limit-order-configurer-frontend/src/config/addresses.ts
+- Execution configuration UI
+- Real-time fill monitoring via charting panel (not implemented, mocked on frontend)
+  
+---
+🛣️ Future Directions
+Support more calculators, more oracle feeds for market-condition-based transitions (e.g., volatility-aware, time-decay-based)
+
+Integration with wallet analytics:
+
+“Sell 30% of my ETH holdings in 3 phases”
+
+Submit orders to 1inch API in production
+
+🫶 Credits
+Huge thanks to the 1inch team for building a highly composable and extensible Limit Order Protocol. Sway builds on top of that foundation to empower users with smarter execution strategies on-chain.
+
